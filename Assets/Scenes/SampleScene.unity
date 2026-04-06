@@ -232,7 +232,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ceecc69f632be4270b5c85d18b5f2797, type: 2}
+  - {fileID: 2100000, guid: eb003b23062094324ab670d9bd39a14b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -774,10 +774,11 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
-  buildingPrefab: {fileID: 2534517749501414979, guid: 7414491c31c4849a7954d3ba782a4e1a,
-    type: 3}
-  ghostValidMat: {fileID: 2100000, guid: ceecc69f632be4270b5c85d18b5f2797, type: 2}
-  ghostInvalidMat: {fileID: 2100000, guid: f3e47785235604a5d853a1a8c931702e, type: 2}
+  buildingPrefabs:
+  - {fileID: 2534517749501414979, guid: 7414491c31c4849a7954d3ba782a4e1a, type: 3}
+  - {fileID: 686250245044911443, guid: 578c19c6a7043409aa4c8557279fd7d2, type: 3}
+  ghostInvalidMat: {fileID: 2100000, guid: fbfa44f2fbaef485fb2c4f9ac9025ee7, type: 2}
+  ghostValidMat: {fileID: 2100000, guid: eb003b23062094324ab670d9bd39a14b, type: 2}
 --- !u!114 &771294031
 MonoBehaviour:
   m_ObjectHideFlags: 0

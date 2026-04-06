@@ -12,8 +12,9 @@ GameObject:
   - component: {fileID: 4954008219313059613}
   - component: {fileID: 2178222015099001523}
   - component: {fileID: 1048527309998914843}
+  - component: {fileID: 4162526807767876697}
   m_Layer: 0
-  m_Name: Building_Machine
+  m_Name: Conveyor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -62,7 +63,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 50de676d57f9b44f2ad646971943c794, type: 2}
+  - {fileID: -876546973899608171, guid: 4474613d4e6cf407b9e13f513a858ead, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -105,3 +106,16 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &4162526807767876697
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8635823794213930083}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c28624ae9fedd4efb8cf505e22ef04ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  layoutDirection: 0

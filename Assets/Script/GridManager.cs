@@ -8,9 +8,7 @@ public class GridManager : MonoBehaviour
     [Header("Grid Settings")]
     public float cellSize = 1.0f;
 
-    // Key: 网格的整数坐标 (Vector3Int)
-    // Value: 放置在该坐标上的建筑Transform (未来可以换成更复杂的 BuildingData类)
-    private Dictionary<Vector3Int, Transform> gridMap = new Dictionary<Vector3Int, Transform>();
+    private Dictionary<Vector3Int, BuildingData> gridMap = new Dictionary<Vector3Int, BuildingData>();
 
     private void Awake()
     {
@@ -18,14 +16,13 @@ public class GridManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    // 坐标转换
+	// 坐标转换
     public Vector3Int GetGridPosition(Vector3 worldPosition)
     {
         int x = Mathf.RoundToInt(worldPosition.x / cellSize);
         int z = Mathf.RoundToInt(worldPosition.z / cellSize);
         return new Vector3Int(x, 0, z);
     }
-
     public Vector3 GetWorldPosition(Vector3Int gridPosition)
     {
         float x = gridPosition.x * cellSize;
@@ -33,23 +30,42 @@ public class GridManager : MonoBehaviour
         return new Vector3(x, 0, z);
     }
 
-    // 检查指定网格是否已经被占用
+	// 获取占用状态
     public bool IsGridOccupied(Vector3Int gridPosition)
     {
         return gridMap.ContainsKey(gridPosition);
     }
 
-    // 在指定网格注册一个新建筑
-    public void PlaceBuilding(Vector3Int gridPosition, Transform buildingTransform)
+	// 放置建筑并更新状态
+    public void PlaceBuilding(Vector3Int gridPosition, BuildingData buildingData)
     {
         if (!IsGridOccupied(gridPosition))
         {
-            gridMap.Add(gridPosition, buildingTransform);
-            Debug.Log($"建筑已成功注册在坐标: {gridPosition}");
+            gridMap.Add(gridPosition, buildingData);
         }
-        else
+    }
+
+    public void RemoveBuilding(Vector3Int gridPosition)
+    {
+        if (gridMap.TryGetValue(gridPosition, out BuildingData data))
         {
-            Debug.LogWarning("尝试在已占用的格子放置建筑！");
+            // 级联销毁：如果当前建筑槽位里有物品，或者有物品正准备移动过来，将其一并销毁
+            if (data.currentItem != null)
+            {
+                Destroy(data.currentItem.gameObject);
+            }
+
+            Destroy(data.gameObject);
+            gridMap.Remove(gridPosition);
         }
+    }
+
+    public BuildingData GetBuildingAt(Vector3Int gridPosition)
+    {
+        if (gridMap.TryGetValue(gridPosition, out BuildingData data))
+        {
+            return data;
+        }
+        return null;
     }
 }
