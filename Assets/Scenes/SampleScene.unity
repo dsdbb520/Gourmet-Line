@@ -770,15 +770,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42c22d21124d241b2b9a04ecfe5bc3af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buildingGhost: {fileID: 271991447}
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
   buildingPrefabs:
   - {fileID: 2534517749501414979, guid: 7414491c31c4849a7954d3ba782a4e1a, type: 3}
   - {fileID: 686250245044911443, guid: 578c19c6a7043409aa4c8557279fd7d2, type: 3}
-  ghostInvalidMat: {fileID: 2100000, guid: fbfa44f2fbaef485fb2c4f9ac9025ee7, type: 2}
+  - {fileID: 686250245044911443, guid: 3572c641f89f44df5a1d5a4852b72b53, type: 3}
   ghostValidMat: {fileID: 2100000, guid: eb003b23062094324ab670d9bd39a14b, type: 2}
+  ghostInvalidMat: {fileID: 2100000, guid: fbfa44f2fbaef485fb2c4f9ac9025ee7, type: 2}
 --- !u!114 &771294031
 MonoBehaviour:
   m_ObjectHideFlags: 0

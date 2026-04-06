@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 5659935904804733729}
   - component: {fileID: 8888113091269884644}
   m_Layer: 0
-  m_Name: Item
+  m_Name: Ball
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -119,3 +119,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 2
+  verticalOffset: 1
+  hasArrived: 1
+  transitions:
+  - machineID: Oven_A
+    outputPrefab: {fileID: 7590996395928578076, guid: aa3aec30813bd4597ba25409269b8232,
+      type: 3}

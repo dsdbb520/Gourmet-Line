@@ -3,8 +3,10 @@ using UnityEngine;
 public class ProcessorMachine : MonoBehaviour
 {
     [Header("Processing Settings")]
-    public float processTime = 2.0f;        // 加工所需时间
-    public GameObject outputItemPrefab;     // 加工后产出的新物品Prefab
+    public string machineID = "Oven_A"; // 定义这台机器的唯一ID
+    public float processTime = 2.0f; // 加工时间
+    
+    private GameObject cachedOutputPrefab; // 暂存当前正在加工的物品的产物预制体
 
     private BuildingData myData;
     private float processTimer = 0f;
@@ -39,21 +41,16 @@ public class ProcessorMachine : MonoBehaviour
 
     private void CheckForInput()
     {
-        // 发现槽位里有物品，并且已经稳稳停在中心
         if (myData.currentItem != null && myData.currentItem.hasArrived)
         {
-            // 1. 锁死状态，防止其他物品进入
-            myData.isProcessing = true;
+            // 吞入前，询问小球它经过我这台机器会变成什么，存下来
+            cachedOutputPrefab = myData.currentItem.GetOutputPrefab(machineID);
             
-            // 2. 吞入物品（销毁旧的白球）
+            myData.isProcessing = true;
             Destroy(myData.currentItem.gameObject);
             myData.currentItem = null; 
-
-            // 3. 进入加工状态
             currentState = State.Processing;
             processTimer = 0f;
-            
-            Debug.Log("机器开始加工！");
         }
     }
 
@@ -68,28 +65,28 @@ public class ProcessorMachine : MonoBehaviour
 
     private void TryOutput()
     {
-        // 尝试向输出方向寻找空位
-        Vector3 outDir = myData.GetOutputDirectionVector(myGridPos);
-        if (outDir == Vector3.zero) return; // 没有有效出口
+        // 获取将要生成的产物身上的Item组件，用于路况预判
+        Item nextItemComp = cachedOutputPrefab.GetComponent<Item>();
+
+        // 传入将要产出的物品进行方向检测
+        Vector3 outDir = myData.GetOutputDirectionVector(myGridPos, nextItemComp);
+        if (outDir == Vector3.zero) return; 
 
         Vector3Int nextGridPos = myGridPos + new Vector3Int(Mathf.RoundToInt(outDir.x), 0, Mathf.RoundToInt(outDir.z));
         BuildingData nextBuilding = GridManager.Instance.GetBuildingAt(nextGridPos);
 
-        // 如果前方是可以接收物品的传送带
-        if (nextBuilding != null && nextBuilding.CanAcceptInput())
+        // 让下一个建筑判断是否能接受这件即将生成的新产物
+        if (nextBuilding != null && nextBuilding.CanAcceptInput(nextItemComp, outDir))
         {
-            // 实例化新物品（比如红球）
-            GameObject newObj = Instantiate(outputItemPrefab);
+            // 确认道路畅通且接受产物后，再真正执行实例化
+            GameObject newObj = Instantiate(cachedOutputPrefab);
             Item newItem = newObj.GetComponent<Item>();
             
-            // 将新物品初始化在机器自己的坐标上
-            newItem.Init(myGridPos);
+            newItem.InitForOutput(myGridPos, nextGridPos, nextBuilding);
             
-            // 【核心】强制让新物品立刻预定下一个格子，并开始移动
             nextBuilding.currentItem = newItem;
-            newItem.hasArrived = false; // 强行触发移动状态
+            newItem.hasArrived = false; 
             
-            // 恢复机器为空闲状态
             myData.isProcessing = false;
             currentState = State.Idle;
         }

@@ -35,6 +35,7 @@ public class BuildingController : MonoBehaviour
         
         selectAction = new InputAction("SelectBuilding", binding: "<Keyboard>/1");
         selectAction.AddBinding("<Keyboard>/2");
+		selectAction.AddBinding("<Keyboard>/3");
 
         rotateBuildingAction.Enable();
         deleteBuildingAction.Enable();
@@ -63,6 +64,7 @@ public class BuildingController : MonoBehaviour
         bool changed = false;
         if (Keyboard.current.digit1Key.wasPressedThisFrame) { selectedIndex = 0; changed = true; }
         if (Keyboard.current.digit2Key.wasPressedThisFrame) { selectedIndex = 1; changed = true; }
+		if (Keyboard.current.digit3Key.wasPressedThisFrame) { selectedIndex = 2; changed = true; }
         
         // 当切换了选择的机器时，重新生成对应的虚影模型
         if (changed)

@@ -4,13 +4,14 @@ using UnityEngine;
 public interface IOutputStrategy
 {
     // 根据当前所在的格子和自身数据，返回下一步的移动方向向量
-    Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData);
+    Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData, Item itemToMove);
+    
 }
 
 // 固定方向（给普通传送带用）
 public class FixedDirectionStrategy : IOutputStrategy
 {
-    public Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData)
+    public Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData, Item itemToMove)
     {
         switch (selfData.layoutDirection)
         {
@@ -32,7 +33,7 @@ public class AutoFindDirectionStrategy : IOutputStrategy
         Vector3.forward, Vector3.right, Vector3.back, Vector3.left
     };
 
-    public Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData)
+    public Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData, Item itemToMove)
     {
         foreach (var dir in checkDirections)
         {
@@ -40,9 +41,9 @@ public class AutoFindDirectionStrategy : IOutputStrategy
             BuildingData neighbor = GridManager.Instance.GetBuildingAt(neighborPos);
             
             // 如果旁边的建筑允许物品进入（即它是传送带且当前为空）
-            if (neighbor != null && neighbor.CanAcceptInput())
+            if (neighbor != null && neighbor.CanAcceptInput(itemToMove, dir))
             {
-                return dir; // 找到第一个可以输出的方向并返回
+                return dir; 
             }
         }
         return Vector3.zero; // 四周都堵死或没有传送带时，返回零向量
