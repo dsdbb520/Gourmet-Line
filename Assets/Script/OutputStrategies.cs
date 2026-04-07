@@ -48,4 +48,40 @@ public class AutoFindDirectionStrategy : IOutputStrategy
         }
         return Vector3.zero; // 四周都堵死或没有传送带时，返回零向量
     }
+
+    public class RoundRobinStrategy : IOutputStrategy
+    {
+        // 检查顺序：上、右、下、左
+        private Vector3[] outputDirections = new Vector3[]
+        {
+        Vector3.forward, Vector3.right, Vector3.back, Vector3.left
+        };
+
+        // 记录上一次成功输出的索引，保证均匀分发
+        private int currentIndex = 0;
+
+        public Vector3 GetOutputDirection(Vector3Int currentGridPos, BuildingData selfData, Item itemToMove)
+        {
+            // 最多循环检查4次，找遍所有方向
+            for (int i = 0; i < 4; i++)
+            {
+                int checkIndex = (currentIndex + i) % 4;
+                Vector3 testDir = outputDirections[checkIndex];
+
+                Vector3Int neighborPos = currentGridPos + new Vector3Int(Mathf.RoundToInt(testDir.x), 0, Mathf.RoundToInt(testDir.z));
+                BuildingData neighbor = GridManager.Instance.GetBuildingAt(neighborPos);
+
+                // 如果该方向能接收物品
+                if (neighbor != null && neighbor.CanAcceptInput(itemToMove, testDir))
+                {
+                    // 指向下一个出口，为下一次分流做准备
+                    currentIndex = (checkIndex + 1) % 4;
+                    return testDir;
+                }
+            }
+
+            // 四周全部堵死，原地等待
+            return Vector3.zero;
+        }
+    }
 }

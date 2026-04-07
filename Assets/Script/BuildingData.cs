@@ -1,10 +1,13 @@
 using UnityEngine;
+using static AutoFindDirectionStrategy;
 
 public enum BuildingType
 {
     Conveyor,
     Spawner,
-	Processor
+	Processor,
+    Splitter,
+    TrashCan
 }
 
 public class BuildingData : MonoBehaviour
@@ -20,8 +23,14 @@ public class BuildingData : MonoBehaviour
 
     private void Awake()
     {
-        // 默认所有建筑使用固定方向策略
-        outputStrategy = new FixedDirectionStrategy();
+        if (type == BuildingType.Splitter)
+        {
+            outputStrategy = new RoundRobinStrategy();
+        }
+        else
+        {
+            outputStrategy = new FixedDirectionStrategy();
+        }
     }
     
     public bool CanAcceptInput(Item incomingItem, Vector3 incomingMoveDir)
@@ -33,6 +42,15 @@ public class BuildingData : MonoBehaviour
             // 点乘接近-1代表对向
             if (Vector3.Dot(incomingMoveDir, myBaseOutDir) < -0.9f) return false;
 
+            return currentItem == null;
+        }
+        else if (type == BuildingType.Splitter)
+        {
+            // 分流器本身没有物理朝向限制，只要当前格子是空的，允许从四面八方进入
+            return currentItem == null;
+        }
+        else if (type == BuildingType.TrashCan)
+        {
             return currentItem == null;
         }
         else if (type == BuildingType.Processor)

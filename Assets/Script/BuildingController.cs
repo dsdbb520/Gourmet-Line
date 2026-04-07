@@ -9,8 +9,7 @@ public class BuildingController : MonoBehaviour
 
     [Header("Building Library")]
     public List<Transform> buildingPrefabs;
-    public Material ghostValidMat;        
-    public Material ghostInvalidMat;      
+   
 
     private int selectedIndex = 0;
     
@@ -36,6 +35,8 @@ public class BuildingController : MonoBehaviour
         selectAction = new InputAction("SelectBuilding", binding: "<Keyboard>/1");
         selectAction.AddBinding("<Keyboard>/2");
 		selectAction.AddBinding("<Keyboard>/3");
+        selectAction.AddBinding("<Keyboard>/4");
+        selectAction.AddBinding("<Keyboard>/5");
 
         rotateBuildingAction.Enable();
         deleteBuildingAction.Enable();
@@ -65,7 +66,9 @@ public class BuildingController : MonoBehaviour
         if (Keyboard.current.digit1Key.wasPressedThisFrame) { selectedIndex = 0; changed = true; }
         if (Keyboard.current.digit2Key.wasPressedThisFrame) { selectedIndex = 1; changed = true; }
 		if (Keyboard.current.digit3Key.wasPressedThisFrame) { selectedIndex = 2; changed = true; }
-        
+        if (Keyboard.current.digit4Key.wasPressedThisFrame) { selectedIndex = 3; changed = true; }
+        if (Keyboard.current.digit5Key.wasPressedThisFrame) { selectedIndex = 4; changed = true; }
+
         // 当切换了选择的机器时，重新生成对应的虚影模型
         if (changed)
         {
@@ -103,14 +106,18 @@ public class BuildingController : MonoBehaviour
 
     private void UpdateGhostMaterial(bool isValid)
     {
-        Material targetMat = isValid ? ghostValidMat : ghostInvalidMat;
-        
+        Color tintColor = isValid ? new Color(0, 1, 0, 0.5f) : new Color(1, 0, 0, 0.5f);
+
+        if (currentGhostRenderers == null) return;
         foreach (var rnd in currentGhostRenderers)
         {
-            // 处理包含多个Submesh的复杂模型，确保所有部分都被替换
-            Material[] mats = new Material[rnd.materials.Length];
-            for (int i = 0; i < mats.Length; i++) mats[i] = targetMat;
-            rnd.materials = mats;
+            foreach (var mat in rnd.materials)
+            {
+                if (mat.HasProperty("_GhostColor"))
+                {
+                    mat.SetColor("_GhostColor", tintColor);
+                }
+            }
         }
     }
 
