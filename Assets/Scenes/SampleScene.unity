@@ -157,7 +157,7 @@ MonoBehaviour:
   m_StreamingVersion: 20170927
   m_Priority: 10
   m_StandbyUpdate: 2
-  m_LookAt: {fileID: 0}
+  m_LookAt: {fileID: 1502612163}
   m_Follow: {fileID: 1502612163}
   m_Lens:
     FieldOfView: 60.000004
@@ -186,8 +186,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 48898595}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.084249966, y: -0.91462713, z: 0.2549124, w: 0.30228934}
-  m_LocalPosition: {x: 0.14100188, y: 15.485549, z: -15.004573}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.14100188, y: 0.48554862, z: -15.004573}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -281,8 +281,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.084249966, y: -0.91462713, z: 0.2549124, w: 0.30228934}
-  m_LocalPosition: {x: 0.14100188, y: 15.485549, z: -15.004573}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.14100188, y: 0.48554862, z: -15.004573}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -601,6 +601,7 @@ GameObject:
   - component: {fileID: 706714518}
   - component: {fileID: 706714520}
   - component: {fileID: 706714519}
+  - component: {fileID: 706714521}
   m_Layer: 0
   m_Name: cm
   m_TagString: Untagged
@@ -635,11 +636,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa7155796051b734daa718462081dc5f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_BindingMode: 1
-  m_FollowOffset: {x: 0, y: 15, z: -15}
-  m_XDamping: 1
-  m_YDamping: 1
-  m_ZDamping: 1
+  m_BindingMode: 2
+  m_FollowOffset: {x: 0, y: 0, z: -15}
+  m_XDamping: 0
+  m_YDamping: 0
+  m_ZDamping: 0
   m_AngularDampingMode: 0
   m_PitchDamping: 0
   m_YawDamping: 0
@@ -655,6 +656,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ac0b09e7857660247b1477e93731de29, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &706714521
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706714517}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e8b78ac948f05a46a6d8339a503172b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &771294029
@@ -696,8 +709,12 @@ MonoBehaviour:
   - {fileID: 686250245044911443, guid: 3572c641f89f44df5a1d5a4852b72b53, type: 3}
   - {fileID: 741242431802166849, guid: 0cb1ec3e2ae2a8348827af673882f045, type: 3}
   - {fileID: 4626575748338376956, guid: d0547403c5c5f384fb7e3873e6bc8e1a, type: 3}
-  ghostValidMat: {fileID: 2100000, guid: eb003b23062094324ab670d9bd39a14b, type: 2}
-  ghostInvalidMat: {fileID: 2100000, guid: fbfa44f2fbaef485fb2c4f9ac9025ee7, type: 2}
+  rotateBuildingActionRef: {fileID: 7031626637904137656, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
+  deleteBuildingActionRef: {fileID: 4742104661599871085, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
+  selectBuildingActionRef: {fileID: -4670540460446150416, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
 --- !u!114 &771294031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -820,8 +837,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   vcam: {fileID: 48898596}
+  panActionRef: {fileID: 3279726584916206643, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
+  rotateActionRef: {fileID: -1016311362551133175, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
+  rotateModifierActionRef: {fileID: -1958839153831870563, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
+  zoomActionRef: {fileID: 4418114853346154281, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
+    type: 3}
   panSpeed: 20
   rotationSpeed: 0.5
+  minPitch: 10
+  maxPitch: 85
   zoomSpeed: 1
   minZoomDistance: 5
   maxZoomDistance: 40

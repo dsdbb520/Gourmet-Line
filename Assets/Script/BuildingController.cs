@@ -23,25 +23,31 @@ public class BuildingController : MonoBehaviour
     private int currentRotationAngle = 0;
     private Direction currentDirection = Direction.Up;
 
-    private InputAction rotateBuildingAction;
-    private InputAction deleteBuildingAction;
-    private InputAction selectAction; 
+    [Header("Input References")]
+    public InputActionReference rotateBuildingActionRef;
+    public InputActionReference deleteBuildingActionRef;
+    public InputActionReference selectBuildingActionRef;
 
-    void Awake()
+    private void OnEnable()
     {
-        rotateBuildingAction = new InputAction("RotateBuilding", binding: "<Keyboard>/r");
-        deleteBuildingAction = new InputAction("DeleteBuilding", binding: "<Keyboard>/x");
-        
-        selectAction = new InputAction("SelectBuilding", binding: "<Keyboard>/1");
-        selectAction.AddBinding("<Keyboard>/2");
-		selectAction.AddBinding("<Keyboard>/3");
-        selectAction.AddBinding("<Keyboard>/4");
-        selectAction.AddBinding("<Keyboard>/5");
+        if (rotateBuildingActionRef != null) rotateBuildingActionRef.action.Enable();
+        if (deleteBuildingActionRef != null) deleteBuildingActionRef.action.Enable();
+        if (selectBuildingActionRef != null) selectBuildingActionRef.action.Enable();
 
-        rotateBuildingAction.Enable();
-        deleteBuildingAction.Enable();
-        selectAction.Enable();
+        if (selectBuildingActionRef != null)
+            selectBuildingActionRef.action.performed += OnSelectNumberKey;
     }
+
+    private void OnDisable()
+    {
+        if (selectBuildingActionRef != null)
+            selectBuildingActionRef.action.performed -= OnSelectNumberKey;
+        if (rotateBuildingActionRef != null) rotateBuildingActionRef.action.Disable();
+        if (deleteBuildingActionRef != null) deleteBuildingActionRef.action.Disable();
+        if (selectBuildingActionRef != null) selectBuildingActionRef.action.Disable();
+    }
+
+
 
     void Start()
     {
@@ -53,26 +59,26 @@ public class BuildingController : MonoBehaviour
 
     void Update()
     {
-        HandleSelectionInput();
         HandleRotationInput();
         HandleMouseSnapping();
         HandleLeftClick();
         HandleDeleteInput();
     }
 
-    private void HandleSelectionInput()
+    private void OnSelectNumberKey(InputAction.CallbackContext context)
     {
-        bool changed = false;
-        if (Keyboard.current.digit1Key.wasPressedThisFrame) { selectedIndex = 0; changed = true; }
-        if (Keyboard.current.digit2Key.wasPressedThisFrame) { selectedIndex = 1; changed = true; }
-		if (Keyboard.current.digit3Key.wasPressedThisFrame) { selectedIndex = 2; changed = true; }
-        if (Keyboard.current.digit4Key.wasPressedThisFrame) { selectedIndex = 3; changed = true; }
-        if (Keyboard.current.digit5Key.wasPressedThisFrame) { selectedIndex = 4; changed = true; }
+        string keyName = context.control.name;
 
-        // 当切换了选择的机器时，重新生成对应的虚影模型
-        if (changed)
+        if (int.TryParse(keyName, out int keyNumber))
         {
-            SpawnDynamicGhost();
+            int newIndex = keyNumber - 1; // 键盘上1对应列表索引0
+
+            // 防越界保护
+            if (newIndex >= 0 && newIndex < buildingPrefabs.Count && newIndex != selectedIndex)
+            {
+                selectedIndex = newIndex;
+                SpawnDynamicGhost(); // 重新生成对应虚影
+            }
         }
     }
 
@@ -123,7 +129,7 @@ public class BuildingController : MonoBehaviour
 
     private void HandleRotationInput()
     {
-        if (rotateBuildingAction.triggered)
+        if (rotateBuildingActionRef.action.triggered)
         {
             currentRotationAngle = (currentRotationAngle + 90) % 360;
             if (currentGhostObj != null)
@@ -199,16 +205,10 @@ public class BuildingController : MonoBehaviour
 
     private void HandleDeleteInput()
     {
-        if (deleteBuildingAction.triggered && GridManager.Instance.IsGridOccupied(currentGridPosition))
+        if (deleteBuildingActionRef.action.triggered && GridManager.Instance.IsGridOccupied(currentGridPosition))
         {
             GridManager.Instance.RemoveBuilding(currentGridPosition);
         }
     }
 
-    private void OnDestroy()
-    {
-        rotateBuildingAction.Disable();
-        deleteBuildingAction.Disable();
-        selectAction.Disable();
-    }
 }

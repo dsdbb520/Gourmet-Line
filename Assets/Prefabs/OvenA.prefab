@@ -137,5 +137,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47daaaf18ec0f4263b51496b05310c31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  machineID: Oven_A
-  processTime: 2
+  recipeDatabase: {fileID: 11400000, guid: dff96aa5007abec41ae1c89227b2f93b, type: 2}

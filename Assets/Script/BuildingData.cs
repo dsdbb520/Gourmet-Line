@@ -55,14 +55,19 @@ public class BuildingData : MonoBehaviour
         }
         else if (type == BuildingType.Processor)
         {
-            // 点乘接近1代表同向
-            if (Vector3.Dot(incomingMoveDir, myBaseOutDir) < 0.9f) return false;
+            // 防逆行
+            if (Vector3.Dot(incomingMoveDir, myBaseOutDir) < -0.9f) return false;
 
+            // 槽位被占或正在加工中，拒绝
             if (currentItem != null || isProcessing) return false;
-            if (incomingItem == null) return false; 
-            
+            if (incomingItem == null) return false;
+
+            // 获取炼金锅组件，询问它是否还需要这个特定的材料
             ProcessorMachine processor = GetComponent<ProcessorMachine>();
-            return processor != null && incomingItem.CanBeProcessedBy(processor.machineID);
+            if (processor != null)
+            {
+                return processor.NeedsIngredient(incomingItem.itemID);
+            }
         }
         return false;
     }

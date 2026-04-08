@@ -1,15 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[System.Serializable]
-public struct ProcessTransition
-{
-    public string machineID;        // 遇到什么机器
-    public GameObject outputPrefab; // 会变成什么预制体
-}
 
 public class Item : MonoBehaviour
 {
+    [Header("Item Identity")]
+    // 物品的唯一标识符，用于多输入配方的匹配
+    public string itemID = "DefaultItem";
     public float moveSpeed = 2.0f;
     public float verticalOffset = 1.0f; 
     
@@ -18,8 +15,6 @@ public class Item : MonoBehaviour
     private bool isMoving = false;
     public bool hasArrived = true;
     
-    [Header("Processing Recipes")]
-    public List<ProcessTransition> transitions;
 
     public void Init(Vector3Int startGridPos)
     {
@@ -93,23 +88,5 @@ public class Item : MonoBehaviour
             hasArrived = false; 
         }
     }
-    
-    // 辅助方法
-    public bool CanBeProcessedBy(string machineID)
-    {
-        foreach (var t in transitions)
-        {
-            if (t.machineID == machineID) return true;
-        }
-        return false;
-    }
 
-    public GameObject GetOutputPrefab(string machineID)
-    {
-        foreach (var t in transitions)
-        {
-            if (t.machineID == machineID) return t.outputPrefab;
-        }
-        return null;
-    }
 }
