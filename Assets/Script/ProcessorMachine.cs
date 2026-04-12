@@ -18,7 +18,7 @@ public class ProcessorMachine : MonoBehaviour
     void Start()
     {
         myData = GetComponent<BuildingData>();
-        myGridPos = GridManager.Instance.GetGridPosition(transform.position);
+		myGridPos = myData.anchorGridPos;
     }
 
     void Update()
@@ -112,20 +112,53 @@ public class ProcessorMachine : MonoBehaviour
     private void TryOutput()
     {
         Item nextItemComp = activeRecipe.outputPrefab.GetComponent<Item>();
-        Vector3 outDir = myData.GetOutputDirectionVector(myGridPos, nextItemComp);
-        if (outDir == Vector3.zero) return;
 
-        Vector3Int nextGridPos = myGridPos + new Vector3Int(Mathf.RoundToInt(outDir.x), 0, Mathf.RoundToInt(outDir.z));
-        BuildingData nextBuilding = GridManager.Instance.GetBuildingAt(nextGridPos);
-
-        if (nextBuilding != null && nextBuilding.CanAcceptInput(nextItemComp, outDir))
+        if (myData.ports != null && myData.ports.Count > 0)
         {
-            GameObject newObj = Instantiate(activeRecipe.outputPrefab);
-            Item newItem = newObj.GetComponent<Item>();
-            newItem.InitForOutput(myGridPos, nextGridPos, nextBuilding);
+            foreach (var port in myData.ports)
+            {
+                if (port.type != PortType.Output) continue;
 
-            myData.isProcessing = false;
-            currentState = State.Idle;
+                Vector2Int rotatedOffset = myData.RotateOffset(port.localCellOffset, myData.layoutDirection);
+                Vector3Int portWorldPos = myGridPos + new Vector3Int(rotatedOffset.x, 0, rotatedOffset.y);
+
+                Vector3 outDir = myData.GetWorldDirection(port.portDirection, myData.layoutDirection);
+                
+                Vector3Int nextGridPos = portWorldPos + new Vector3Int(Mathf.RoundToInt(outDir.x), 0, Mathf.RoundToInt(outDir.z));
+                BuildingData nextBuilding = GridManager.Instance.GetBuildingAt(nextGridPos);
+
+                // 让门外的建筑检查
+                if (nextBuilding != null && nextBuilding.CanAcceptInput(nextItemComp, outDir, nextGridPos))
+                {
+                    GameObject newObj = Instantiate(activeRecipe.outputPrefab);
+                    Item newItem = newObj.GetComponent<Item>();
+                    
+                    // 发往下一个格子
+                    newItem.InitForOutput(portWorldPos, nextGridPos, nextBuilding);
+
+                    myData.isProcessing = false;
+                    currentState = State.Idle;
+                    return; // 吐出一个就结束当前循环
+                }
+            }
+        }
+        else
+        {
+            Vector3 outDir = myData.GetOutputDirectionVector(myGridPos, nextItemComp);
+            if (outDir == Vector3.zero) return;
+
+            Vector3Int nextGridPos = myGridPos + new Vector3Int(Mathf.RoundToInt(outDir.x), 0, Mathf.RoundToInt(outDir.z));
+            BuildingData nextBuilding = GridManager.Instance.GetBuildingAt(nextGridPos);
+
+            if (nextBuilding != null && nextBuilding.CanAcceptInput(nextItemComp, outDir, nextGridPos))
+            {
+                GameObject newObj = Instantiate(activeRecipe.outputPrefab);
+                Item newItem = newObj.GetComponent<Item>();
+                newItem.InitForOutput(myGridPos, nextGridPos, nextBuilding);
+
+                myData.isProcessing = false;
+                currentState = State.Idle;
+            }
         }
     }
 }

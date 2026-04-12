@@ -11,9 +11,9 @@ public class ItemSpawner : MonoBehaviour
 
     void Start()
     {
-        myGridPos = GridManager.Instance.GetGridPosition(transform.position);
+        
         myData = GetComponent<BuildingData>();
-
+		if (myData != null) myGridPos = myData.anchorGridPos;
         // 覆盖默认策略，切换为“自动寻找方向”
         if (myData != null)
         {

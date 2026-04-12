@@ -37,11 +37,30 @@ public class GridManager : MonoBehaviour
     }
 
 	// 放置建筑并更新状态
-    public void PlaceBuilding(Vector3Int gridPosition, BuildingData buildingData)
+    public void PlaceBuilding(Vector3Int anchorGridPosition, BuildingData buildingData)
     {
-        if (!IsGridOccupied(gridPosition))
+		buildingData.anchorGridPos = anchorGridPosition;
+
+        List<Vector3Int> cellsToOccupy = buildingData.GetWorldOccupiedCells(anchorGridPosition, buildingData.layoutDirection);
+        if (cellsToOccupy == null || cellsToOccupy.Count == 0)
         {
-            gridMap.Add(gridPosition, buildingData);
+            Debug.LogError($"[致命错误] 建筑 {buildingData.gameObject.name} 的占地网格计算为空！字典注册失败！");
+            return;
+        }
+
+        foreach (var cell in cellsToOccupy)
+        {
+            if (IsGridOccupied(cell))
+            {
+                Debug.LogWarning($"[网格拦截] 尝试在已被占用的网格 {cell} 强行放置，操作已取消。");
+                return; 
+            }
+        }
+
+        foreach (var cell in cellsToOccupy)
+        {
+            gridMap.Add(cell, buildingData);
+            Debug.Log($"[网格注册成功] 坐标: {cell} | 建筑: {buildingData.gameObject.name}");
         }
     }
 
@@ -49,14 +68,20 @@ public class GridManager : MonoBehaviour
     {
         if (gridMap.TryGetValue(gridPosition, out BuildingData data))
         {
-            // 级联销毁：如果当前建筑槽位里有物品，或者有物品正准备移动过来，将其一并销毁
-            if (data.currentItem != null)
+            // 如果槽位有物品，销毁物品
+            if (data.currentItem != null) Destroy(data.currentItem.gameObject);
+
+            // 获取这个大型建筑当前真实占用的所有世界坐标
+            Vector3Int anchorPos = data.anchorGridPos; 
+			List<Vector3Int> allOccupiedCells = data.GetWorldOccupiedCells(anchorPos, data.layoutDirection);
+			// 批量从字典中移除
+            foreach (var cell in allOccupiedCells)
             {
-                Destroy(data.currentItem.gameObject);
+                gridMap.Remove(cell);
             }
 
+            // 最后销毁实体
             Destroy(data.gameObject);
-            gridMap.Remove(gridPosition);
         }
     }
 

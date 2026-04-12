@@ -78,7 +78,7 @@ public class Item : MonoBehaviour
         BuildingData nextBuilding = GridManager.Instance.GetBuildingAt(nextGridPos);
 
         // 将自身传给下一个建筑
-        if (nextBuilding != null && nextBuilding.CanAcceptInput(this, outDir))
+        if (nextBuilding != null && nextBuilding.CanAcceptInput(this, outDir, nextGridPos))
         {
             nextBuilding.currentItem = this;
             currentBuilding.currentItem = null;

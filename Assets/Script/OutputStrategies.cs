@@ -41,15 +41,16 @@ public class AutoFindDirectionStrategy : IOutputStrategy
             BuildingData neighbor = GridManager.Instance.GetBuildingAt(neighborPos);
             
             // 如果旁边的建筑允许物品进入（即它是传送带且当前为空）
-            if (neighbor != null && neighbor.CanAcceptInput(itemToMove, dir))
+            if (neighbor != null && neighbor.CanAcceptInput(itemToMove, dir, neighborPos))
             {
                 return dir; 
             }
         }
         return Vector3.zero; // 四周都堵死或没有传送带时，返回零向量
     }
+}
 
-    public class RoundRobinStrategy : IOutputStrategy
+public class RoundRobinStrategy : IOutputStrategy
     {
         // 检查顺序：上、右、下、左
         private Vector3[] outputDirections = new Vector3[]
@@ -72,7 +73,7 @@ public class AutoFindDirectionStrategy : IOutputStrategy
                 BuildingData neighbor = GridManager.Instance.GetBuildingAt(neighborPos);
 
                 // 如果该方向能接收物品
-                if (neighbor != null && neighbor.CanAcceptInput(itemToMove, testDir))
+                if (neighbor != null && neighbor.CanAcceptInput(itemToMove, testDir, neighborPos))
                 {
                     // 指向下一个出口，为下一次分流做准备
                     currentIndex = (checkIndex + 1) % 4;
@@ -84,4 +85,3 @@ public class AutoFindDirectionStrategy : IOutputStrategy
             return Vector3.zero;
         }
     }
-}

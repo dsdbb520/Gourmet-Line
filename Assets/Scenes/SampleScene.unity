@@ -709,6 +709,7 @@ MonoBehaviour:
   - {fileID: 686250245044911443, guid: 3572c641f89f44df5a1d5a4852b72b53, type: 3}
   - {fileID: 741242431802166849, guid: 0cb1ec3e2ae2a8348827af673882f045, type: 3}
   - {fileID: 4626575748338376956, guid: d0547403c5c5f384fb7e3873e6bc8e1a, type: 3}
+  - {fileID: 8373122326549394774, guid: 4e6751a5c5f644963b73fd11817ed184, type: 3}
   rotateBuildingActionRef: {fileID: 7031626637904137656, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,
     type: 3}
   deleteBuildingActionRef: {fileID: 4742104661599871085, guid: 4bf90dcff4ee18d489b1ec7e1e7adc34,

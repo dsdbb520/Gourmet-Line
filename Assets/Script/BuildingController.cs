@@ -151,26 +151,38 @@ public class BuildingController : MonoBehaviour
         }
     }
 
-    private void HandleMouseSnapping()
+	private void HandleMouseSnapping()
     {
-        if (currentGhostObj == null) return;
-
         Vector2 mousePos = Mouse.current.position.ReadValue();
         Ray ray = Camera.main.ScreenPointToRay(mousePos);
-        RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit, 1000f, groundLayer))
+        Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
+        
+        if (groundPlane.Raycast(ray, out float enter))
         {
-            if (!currentGhostObj.activeSelf) currentGhostObj.SetActive(true);
+            Vector3 hitPoint = ray.GetPoint(enter);
+            
+            currentGridPosition = new Vector3Int(Mathf.RoundToInt(hitPoint.x), 0, Mathf.RoundToInt(hitPoint.z));
 
-            currentGridPosition = GridManager.Instance.GetGridPosition(hit.point);
-            Vector3 targetWorldPos = GridManager.Instance.GetWorldPosition(currentGridPosition);
-            targetWorldPos.y = 0.5f; 
-            currentGhostObj.transform.position = targetWorldPos;
+            BuildingData prefabData = buildingPrefabs[selectedIndex].GetComponent<BuildingData>();
+            bool isValid = true;
 
-            // 检查占用并优化材质替换开销
-            bool isOccupied = GridManager.Instance.IsGridOccupied(currentGridPosition);
-            bool isValid = !isOccupied;
+            if (prefabData != null)
+            {
+                Vector3 rotatedOffset = Quaternion.Euler(0, currentRotationAngle, 0) * prefabData.placementOffset;
+                currentGhostObj.transform.position = currentGridPosition + rotatedOffset;
+
+                // 碰撞检测
+                List<Vector3Int> checkCells = prefabData.GetWorldOccupiedCells(currentGridPosition, currentDirection);
+                foreach (var cell in checkCells)
+                {
+                    if (GridManager.Instance.IsGridOccupied(cell))
+                    {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
 
             if (isValid != isCurrentlyValid)
             {
@@ -178,19 +190,18 @@ public class BuildingController : MonoBehaviour
                 isCurrentlyValid = isValid;
             }
         }
-        else
-        {
-            if (currentGhostObj.activeSelf) currentGhostObj.SetActive(false);
-        }
     }
-
     private void HandleLeftClick()
     {
         if (Mouse.current.leftButton.wasPressedThisFrame && currentGhostObj != null && currentGhostObj.activeSelf)
         {
-            if (!GridManager.Instance.IsGridOccupied(currentGridPosition))
+            if (isCurrentlyValid) 
             {
-                Transform newBuilding = Instantiate(buildingPrefabs[selectedIndex], currentGhostObj.transform.position, Quaternion.Euler(0, currentRotationAngle, 0));
+                BuildingData prefabData = buildingPrefabs[selectedIndex].GetComponent<BuildingData>();
+                Vector3 rotatedOffset = Quaternion.Euler(0, currentRotationAngle, 0) * prefabData.placementOffset;
+                
+                Transform newBuilding = Instantiate(buildingPrefabs[selectedIndex], currentGridPosition + rotatedOffset, Quaternion.Euler(0, currentRotationAngle, 0));
+                
                 newBuilding.SetParent(buildingContainer);
                 
                 BuildingData data = newBuilding.GetComponent<BuildingData>();
