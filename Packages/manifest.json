@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.sidefx.vat": "file:C:/Users/dsdbb/Desktop/文档/unity/shaders/URP_VAT3",
     "com.unity.cinemachine": "2.10.7",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.ide.rider": "3.0.39",
