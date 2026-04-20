@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "com.sidefx.vat": {
-      "version": "file:C:/Users/dsdbb/Desktop/文档/unity/shaders/URP_VAT3",
+      "version": "file:unity/shaders/URP_VAT3",
       "depth": 0,
       "source": "local",
       "dependencies": {
