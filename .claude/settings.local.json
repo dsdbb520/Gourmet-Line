@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \".\" -Name)",
+      "Bash(Select-String \"\\\\.md|README|CONTRIBUTING\")",
+      "PowerShell(Get-ChildItem -Path \"f:\\\\unity\\\\Gourmet-Line\" -File | Where-Object { $_.Extension -match '\\\\.\\(md|txt\\)$' } | Select-Object -ExpandProperty FullName)"
+    ]
+  }
+}
