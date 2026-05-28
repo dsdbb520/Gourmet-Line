@@ -181,11 +181,13 @@ Unity 默认阴影是软阴影（物理正确），但 NPR 要求投影阴影也
 
 炼金原材料的核心视觉——矿石、宝石类材料需要专门的 Shader。
 
-- [ ] **内部折射**：Matcap 采样（用已有的 Matcaps AnimefanPostUP 贴图）模拟内部高光
-- [ ] **色散（Dispersion）**：RGB 三通道分别偏移采样，产生棱镜彩色边缘
-- [ ] **次表面透光**：`abs(dot(N, L))` 模拟晶体透光感（与伪SSS不同，晶体更锐利）
-- [ ] **各向异性高光**：晶体沿裂缝方向有条状高光
-- [ ] **Emission 脉冲**：`sin(Time) * 0.5 + 0.5` 驱动轻微脉冲发光（魔法矿石感）
+- [x] **内部折射**：Matcap 采样（Matcap_Bluefield_Shard 默认），Screen 混合叠入
+- [x] **色散（Dispersion）**：RGB 沿 normalVS.xy 方向各自偏移，棱镜彩虹边缘
+- [x] **次表面透光**：`abs(dot(N, L))` + Fresnel 乘以透光量，双面透光
+- [x] **各向异性高光**：Kajiya-Kay，`_AnisoShininess=300`，高光更锐利集中
+- [x] **Emission 脉冲**：`sin(_Time.y * speed) * 0.5 + 0.5` 呼吸发光
+- **实现文件**：`Assets/Shader/Crystal_CelShaded.shader`（HLSL 透明 + 描边双 Pass）
+- **材质**：`Assets/Shader/Mat_Crystal.mat`（已关联 Matcap_Bluefield_Shard + 预设参数）
 
 ---
 
@@ -196,10 +198,12 @@ Unity 默认阴影是软阴影（物理正确），但 NPR 要求投影阴影也
 
 炼金大锅、管道接头、炉架等金属部件。
 
-- [ ] **各向异性高光**：用切线方向偏移 half vector，产生拉丝金属感（适合铸铁锅）
-- [ ] **风格化金属反射**：Matcap 采样（比 Reflection Probe 更可控，更卡通）
-- [ ] **边缘磨损**：顶点色驱动 AO 和磨损 mask，加深接缝和凹角
-- [ ] **受热发光**（炉子专用）：从底部到顶部的 Y 轴 Emission Gradient（模拟被火烤热的金属）
+- [x] **各向异性高光**：Kajiya-Kay 简化模型，切线偏移 + step 硬边化，铸铁拉丝感
+- [x] **风格化金属反射**：Matcap 采样（normalVS.xy * 0.5 + 0.5），Screen 混合叠入
+- [x] **边缘磨损**：顶点色 R 通道驱动磨损 mask，lerp 深棕色叠在 albedo 上
+- [x] **受热发光**（炉子专用）：World Y 轴梯度，pow 集中底部，双色 lerp（橙红→暗红）
+- **实现文件**：`Assets/Shader/AlchemyMetal_CelShaded.shader`（HLSL，含详细注释）
+- **材质**：`Assets/Shader/Mat_AlchemyMetal.mat`（已关联 Shader + 预设参数）
 
 ---
 

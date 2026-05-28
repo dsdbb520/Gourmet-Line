@@ -28,15 +28,19 @@ Material:
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 2
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 3000
   stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _BubbleTex:
+        m_Texture: {fileID: 2800000, guid: 044d15fa6d333c54abbdce0e2a67f438, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -53,20 +57,32 @@ Material:
     m_Floats:
     - _AlphaLerpMax: 0.965
     - _AlphaLerpMin: 0.883
+    - _BubbleScale: 20
+    - _BubbleSpeed: 1.67
     - _Bubble_Detail_Scale: 5
     - _Bubble_Sharpness: 6
+    - _EmissionStrength: 1
     - _Foam_Hardness: 4
     - _Foam_Thickness: 0.167
+    - _FresnelPower: 3
+    - _LiquidLevel: 0.22
     - _Noise_Scale: 10
-    - _QueueControl: 0
-    - _QueueOffset: 0
+    - _QueueControl: 1
+    - _QueueOffset: 50
     - _Smoothness: 0.9
+    - _SurfaceLineWidth: 0.0246
+    - _Transparency: 0.794
+    - _WaveHeight: 0.015
+    - _WaveSpeed: 3
     - _Wave_Height: 0.01
     - _Wave_Speed: 1
     m_Colors:
+    - _BubbleColor: {r: 0.066037595, g: 1, b: 0.6793499, a: 1}
     - _Bubble_Norm_Strength: {r: 1, g: 1, b: 0, a: 0}
     - _Color_Deep: {r: 0.22745098, g: 0.654902, b: 0.89411765, a: 0}
     - _Color_Surface: {r: 0.03350331, g: 0.9685534, b: 0.9189985, a: 0}
+    - _DeepColor: {r: 0.105672136, g: 0.8616352, b: 0.6000935, a: 1}
     - _Foam_Color: {r: 1.0890052, g: 1.3350785, b: 0.591623, a: 0}
+    - _LiquidColor: {r: 0.103773475, g: 1, b: 0.6090928, a: 1}
     - _Potion_Color: {r: 0.25882354, g: 0.8862745, b: 0.72156864, a: 0}
   m_BuildTextureStacks: []

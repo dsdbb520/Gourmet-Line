@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Mat_AlchemyMetal
+  m_Shader: {fileID: 4800000, guid: a4e2f8c31b7d469b85e6f2a93d1047c5, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 2
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MatcapTex:
+        m_Texture: {fileID: 2800000, guid: 00e38ddd30e1d9d47b7c7e5c48257a06, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RampMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AnisoFalloff: 0
+    - _AnisoIntensity: 1
+    - _AnisoShift: -0.08
+    - _AnisoShininess: 307
+    - _AnisoThreshold: 0.744
+    - _HeatFalloff: 2.84
+    - _HeatIntensity: 4.58
+    - _HeatYBottom: 3.54
+    - _HeatYTop: 4.1
+    - _MatcapIntensity: 1
+    - _OutlineWidth: 1
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _RimIntensity: 0.7
+    - _RimPower: 3
+    - _ShadowEdge: 0.05
+    - _ShadowRampThreshold: 0.5
+    - _WornIntensity: 0.8
+    m_Colors:
+    - _AnisoSpecColor: {r: 1, g: 0.95, b: 0.8, a: 1}
+    - _BaseColor: {r: 0.72, g: 0.65, b: 0.52, a: 1}
+    - _HeatColorHot: {r: 1, g: 0.3, b: 0.02, a: 1}
+    - _HeatColorWarm: {r: 0.7, g: 0.15, b: 0, a: 1}
+    - _OutlineColor: {r: 0.1, g: 0.08, b: 0.06, a: 1}
+    - _RimColor: {r: 1, g: 0.55, b: 0.1, a: 1}
+    - _WornColor: {r: 0.12, g: 0.1, b: 0.08, a: 1}
+  m_BuildTextureStacks: []

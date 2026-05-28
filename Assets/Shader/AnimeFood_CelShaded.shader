@@ -31,13 +31,17 @@ Shader "GourmetLine/AnimeFood_CelShaded"
 
     SubShader
     {
-        Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
+        // Queue=2501：刚好越过 URP 的透明渲染阈值（2500）。
+        // 在这个队列，不透明物体的深度缓冲已经完全写入，
+        // SRPDefaultUnlit 的描边 Pass 才能正确做深度测试，不再穿透前景物体。
+        Tags { "RenderType"="Opaque" "Queue"="AlphaTest+51" "RenderPipeline"="UniversalPipeline" }
 
         // Pass 1: 主渲染 Pass (卡通光照 + SSS)
         Pass
         {
             Name "ForwardLit"
             Tags { "LightMode"="UniversalForward" }
+            ZWrite On  // 显式声明写深度，防止 URP 因队列 >2500 而自动关闭 ZWrite
             
             HLSLPROGRAM
             #pragma vertex vert
@@ -115,8 +119,8 @@ Shader "GourmetLine/AnimeFood_CelShaded"
         }
 
         // Pass 2: 描边 (Clip Space 法线膨胀)
-        // 原理：在裁剪空间做法线偏移，乘以 posCS.w 抵消透视，
-        //       使描边宽度在屏幕上保持视觉恒定（不随远近变化）。
+        // 在队列 2501（透明阈值之后），SRPDefaultUnlit 能正确访问不透明深度缓冲，
+        // 背景物体的描边无法再穿透到该物体的像素上。
         Pass
         {
             Name "Outline"
