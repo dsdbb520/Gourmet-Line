@@ -61,11 +61,12 @@ Shader "GourmetLine/Crystal_CelShaded"
         _GemThreshold("Gem Threshold (step)", Range(0, 1)) = 0.92
         _GemIntensity("Gem Intensity", Range(0, 4)) = 2.5
 
-        [Header(Matcap Internal Caustics)]
-        // Matcap 作为辅助：模拟晶体内部焦散（光聚焦形成的亮斑图案）
-        // 使用 Multiply 混合而非 Screen，避免与折射争夺视觉焦点
-        _MatcapTex("Matcap (Internal Caustics)", 2D) = "white" {}
-        _MatcapIntensity("Matcap Intensity", Range(0, 1)) = 0.3
+        [Header(Inner Glow)]
+        // 内部辉光：双角度采样 Matcap 相乘，产生刻面干涉亮斑
+        // 无论背景有没有内容，晶体本身就有可见的发光内部结构
+        _MatcapTex("Matcap (Inner Glow Source)", 2D) = "white" {}
+        // 0 = 关闭内部辉光，1~2 = 正常，3 = 非常强烈
+        _InnerGlowIntensity("Inner Glow Intensity", Range(0, 3)) = 1.2
 
         [Header(Emission Pulse)]
         _PulseColor("Pulse Emission Color", Color) = (0.55, 0.25, 1.0, 1)
@@ -127,7 +128,7 @@ Shader "GourmetLine/Crystal_CelShaded"
             };
 
             sampler2D _BaseMap;      float4 _BaseColor;
-            sampler2D _MatcapTex;    float  _MatcapIntensity;
+            sampler2D _MatcapTex;    float  _InnerGlowIntensity;
             float  _RefractionStrength;  float _RefractionTint;
             float  _DispersionAmount;
             float  _FresnelPower;    float _CenterOpacity;  float _EdgeOpacity;
@@ -215,15 +216,22 @@ Shader "GourmetLine/Crystal_CelShaded"
                 gemSpec       *= step(0.0, NdotL);
                 half3 gemLight = _GemSpecColor.rgb * gemSpec * _GemIntensity;
 
-                // ── Matcap 内部焦散（辅助效果，弱化处理）───────────────────
-                // 焦散 = 光线穿过弯曲表面后聚焦形成的亮斑图案
-                // 这里用 Matcap 做近似：只做 Multiply 混合（轻微调制颜色）
-                // 不用 Screen 叠加是因为折射已经够亮，Matcap 只需要加细节
-                float2 matcapUV = IN.normalVS.xy * 0.5 + 0.5;
-                half3  caustics = tex2D(_MatcapTex, matcapUV).rgb;
-                // Multiply：caustics 中白色部分不影响颜色，黑色部分压暗
-                // 反转：0.5 + caustics * 0.5 → 只有暗部影响，保持高光区域
-                half3  causticsModulate = lerp(half3(1,1,1), caustics, _MatcapIntensity);
+                // ── 内部辉光 (Inner Glow) — 无论背景有无内容均可见 ──────────
+                // 原理：对同一张 Matcap 做两次不同角度的采样，然后相乘
+                //   glow1 × glow2：只有两次采样都亮的像素才保持亮
+                //              → 产生散布的刻面亮斑图案，而非均匀的辉光
+                // 旋转 30°（cos30≈0.866，sin30=0.5）让第二次采样错开，
+                //   避免两次完全重叠（重叠 = 退化成单次采样，失去干涉图案）
+                float2 matcapUV  = IN.normalVS.xy * 0.5 + 0.5;
+                float2 nvsRot    = float2(IN.normalVS.x * 0.866 - IN.normalVS.y * 0.5,
+                                         IN.normalVS.x * 0.5   + IN.normalVS.y * 0.866);
+                float2 matcapUV2 = nvsRot * 0.5 + 0.5;
+                half3  glow1     = tex2D(_MatcapTex, matcapUV).rgb;
+                half3  glow2     = tex2D(_MatcapTex, matcapUV2).rgb;
+                // 双样本相乘 × 晶体颜色染色 × 强度
+                half3  innerGlow = glow1 * glow2 * albedo.rgb * _InnerGlowIntensity;
+                // 晶体中心（fresnel 低 = 最厚）辉光最强，边缘衰减
+                innerGlow       *= (1.0 - fresnel * 0.6);
 
                 // ── Rim Light ────────────────────────────────────────────────
                 float rimI = pow(1.0 - NdotV, _RimPower) * _RimIntensity;
@@ -237,11 +245,14 @@ Shader "GourmetLine/Crystal_CelShaded"
                 // 合成思路（与金属完全不同）：
                 //
                 //   金属合成：albedo × shadowRamp × Matcap(Screen) + AnisoSpec + RimLight + HeatEmit
-                //   晶体合成：折射背景（有色）× 焦散调制  +  表面高光  +  背光透色  +  发光
+                //   晶体合成：折射背景（有色）→ Screen 叠入内部辉光 → 加各高光层
                 //
-                // 折射是晶体颜色的基底（而非 albedo × 光照）
-                half3 crystalBase = tintedRefraction * causticsModulate;
-                half3 finalColor  = crystalBase + gemLight + trans + rim + emission;
+                // Screen 公式：1 - (1-a)(1-b)
+                //   背景有内容 → 折射亮 + 辉光 = 叠加效果
+                //   背景无内容 → 折射暗（接近黑）+ 辉光 = 辉光直接可见
+                half3 crystalBase = tintedRefraction;
+                half3 withGlow    = 1.0 - (1.0 - crystalBase) * (1.0 - innerGlow);
+                half3 finalColor  = withGlow + gemLight + trans + rim + emission;
 
                 return half4(finalColor, finalAlpha);
             }

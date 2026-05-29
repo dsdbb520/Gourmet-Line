@@ -214,10 +214,13 @@ Unity 默认阴影是软阴影（物理正确），但 NPR 要求投影阴影也
 
 当原材料被放入炼金炉，播放炼金反应时的视觉特效 Shader。
 
-- [ ] **Noise 溶解**：用 Gradient Noise + `step(_DissolveAmount, noise)` 做边缘溶解
-- [ ] **发光溶解边**：在溶解边缘叠加 Emission，`smoothstep` 控制宽度，颜色用炼金橙/紫
-- [ ] **UV 扭曲**：溶解时用 Simple Noise 扰动 UV，产生热浪扭曲感
-- [ ] **对外暴露 `_DissolveAmount` 参数**，由 C# 动画曲线控制（ProcessorMachine 完成时触发）
+- [x] **Noise 溶解**：FBM 程序化噪声（3层梯度噪声叠加）+ `clip(noise - _DissolveAmount)`
+- [x] **发光溶解边**：`edgeFactor` 检测边界区域，Hot→Cool 双色 Emission 渐变
+- [x] **UV 扭曲**：独立噪声驱动热浪 UV 偏移，`× saturate(_DissolveAmount * 4)` 关联溶解进度
+- [x] **对外暴露 `_DissolveAmount`**：C# 调用 `mat.SetFloat("_DissolveAmount", v)`
+- [x] **ShadowCaster Pass**：同步 clip 逻辑，溶解后不残留阴影
+- **实现文件**：`Assets/Shader/Dissolve_Alchemy.shader`（含详细注释）
+- **材质**：`Assets/Shader/Mat_Dissolve.mat`
 
 ---
 
@@ -228,10 +231,11 @@ Unity 默认阴影是软阴影（物理正确），但 NPR 要求投影阴影也
 
 把工厂传送带改造成魔法符文阵（炼金工房的"物流系统"）。
 
-- [ ] **符文图案**：使用 UV Tile & Offset + 符文纹理（可用程序化 Voronoi 模拟）
-- [ ] **流动方向**：Panner Node 沿传送方向滚动（已有 SG_Conveyor 应已实现）
-- [ ] **发光脉冲**：Emission 随 Time 做波形动画（sin波）
-- [ ] **边缘魔法粒子**：在 Shader 层用 Voronoi 点做闪烁粒子效果（不依赖 Particle System）
+- [x] **符文图案**：支持贴图模式 + 程序化 Voronoi 边缘线双模式（无贴图时自动切换）
+- [x] **流动方向**：`_FlowDirection` 向量驱动 UV 偏移，可任意指定方向
+- [x] **发光脉冲**：`_PulseDepth` 控制呼吸幅度，0=常亮，1=完整呼吸
+- [x] **边缘魔法粒子**：Voronoi 细胞中心光点，每粒子独立相位闪烁，不依赖 Particle System
+- **实现文件**：`Assets/Shader/RuneConveyor_CelShaded.shader`
 
 ---
 
@@ -242,10 +246,11 @@ Unity 默认阴影是软阴影（物理正确），但 NPR 要求投影阴影也
 
 炼金工房的地面、墙壁、架子。
 
-- [ ] **石板地面**：Triplanar Mapping + 苔藓 mask（顶点色驱动）+ 湿润高光
-- [ ] **木材架子**：Detail Normal Map 叠加木纹细节 + 卡通色调（暖棕）
-- [ ] **布料材料袋**：双层各向异性（布料丝线方向高光） + Cel 化处理
-- [ ] 以上材质保持与 CelShader 相同的 Rim Light / Shadow 风格，视觉统一
+- [x] **石板地面**：Triplanar Mapping（世界坐标三轴采样）+ 苔藓 mask（顶点色 G）+ 湿润高光
+- [x] **木材架子**：Detail Normal Map（木纹细节法线）+ 暖色冷暖分离阴影 + 木纹方向高光
+- [x] **布料材料袋**：双层各向异性（经线 Warp + 纬线 Weft 分别计算）+ Cel step 硬边
+- [x] 三个材质统一使用相同的 Rim Light / Shadow 风格
+- **实现文件**：`StoneFloor_CelShaded.shader` / `Wood_CelShaded.shader` / `Fabric_CelShaded.shader`
 
 ---
 
