@@ -31,10 +31,48 @@ Shader "GourmetLine/AnimeFood_CelShaded"
 
     SubShader
     {
-        // Queue=2501：刚好越过 URP 的透明渲染阈值（2500）。
-        // 在这个队列，不透明物体的深度缓冲已经完全写入，
-        // SRPDefaultUnlit 的描边 Pass 才能正确做深度测试，不再穿透前景物体。
-        Tags { "RenderType"="Opaque" "Queue"="AlphaTest+51" "RenderPipeline"="UniversalPipeline" }
+        // Queue=Geometry：标准不透明队列。
+        // 原先用 2501(越过透明阈值 2500)是为了让 SRPDefaultUnlit 描边 Pass 的深度测试更稳；
+        // 改回 Geometry 的两个收益更关键：
+        //   1) 进入 URP 的 DepthNormals 预通道(只渲染 ≤2500)，让下方 DepthNormals Pass 生效，
+        //      从而能被全局 ScreenSpaceOutline 描边（描出每条棱/折角）；
+        //   2) SRPDefaultUnlit 本就在不透明渲染之后执行，背面描边深度依旧正确。
+        Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
+
+        // ── DepthNormals Pass ───────────────────────────────────────────────
+        // 把本物体的世界空间法线写入 URP 的 _CameraNormalsTexture。
+        // 全局 ScreenSpaceOutline 靠比较相邻像素的法线差检测边缘，只有写了这张
+        // 法线图的物体才会被全局描边描到。URP Lit 自带此 Pass，自定义 Shader 需补。
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex DepthNormalsVert
+            #pragma fragment DepthNormalsFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct DNAttributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
+            struct DNVaryings   { float4 positionCS : SV_POSITION; float3 normalWS : TEXCOORD0; };
+
+            DNVaryings DepthNormalsVert(DNAttributes IN)
+            {
+                DNVaryings OUT;
+                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
+                return OUT;
+            }
+
+            half4 DepthNormalsFrag(DNVaryings IN) : SV_Target
+            {
+                // URP 12+ 的 _CameraNormalsTexture 存世界空间法线
+                return half4(normalize(IN.normalWS), 0.0);
+            }
+            ENDHLSL
+        }
 
         // Pass 1: 主渲染 Pass (卡通光照 + SSS)
         Pass

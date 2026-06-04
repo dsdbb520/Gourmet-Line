@@ -24,7 +24,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: d0f64760121b8174aa1af479cdf4ddba, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MatcapTex:
@@ -47,7 +47,7 @@ Material:
     - _HeatYBottom: 3.54
     - _HeatYTop: 4.1
     - _MatcapIntensity: 1
-    - _OutlineWidth: 1
+    - _OutlineWidth: 1.5
     - _QueueControl: 0
     - _QueueOffset: 0
     - _RimIntensity: 0.7
@@ -57,7 +57,7 @@ Material:
     - _WornIntensity: 0.8
     m_Colors:
     - _AnisoSpecColor: {r: 1, g: 0.95, b: 0.8, a: 1}
-    - _BaseColor: {r: 0.72, g: 0.65, b: 0.52, a: 1}
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _HeatColorHot: {r: 1, g: 0.3, b: 0.02, a: 1}
     - _HeatColorWarm: {r: 0.7, g: 0.15, b: 0, a: 1}
     - _OutlineColor: {r: 0.1, g: 0.08, b: 0.06, a: 1}

@@ -67,6 +67,12 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# Personal showcase notes (operational, not for the public repo)
+SHOWCASE_NOTES.md
+
+# Personal shader study / interview-prep notes (not for the public repo)
+docs/SHADER_TECH.md
+
 # Packed Addressables
 /[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
 

@@ -57,7 +57,51 @@ Shader "GourmetLine/Dissolve_Alchemy"
     SubShader
     {
         // AlphaTest 队列：使用 clip() 裁切，必须在此队列才能正确投影
+        // (≤2500 → 也会进入 URP DepthNormals 预通道，下方 DepthNormals Pass 才生效)
         Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" "RenderPipeline"="UniversalPipeline" }
+
+        // ── DepthNormals Pass（含溶解 clip）──────────────────────────────────
+        // 写世界空间法线供全局 ScreenSpaceOutline 检测边缘；必须与主 Pass 同步 clip，
+        // 否则已溶解消失的部分仍写法线，会被全局描边勾出"幽灵轮廓"。
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex DNVert
+            #pragma fragment DNFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            float _DissolveAmount; float _NoiseTiling; float _NoiseScrollSpeed;
+
+            // 复用与主 Pass 一致的噪声，保证 clip 结果相同
+            float2 _Hash2(float2 p){p=float2(dot(p,float2(127.1,311.7)),dot(p,float2(269.5,183.3)));return frac(sin(p)*43758.5453);}
+            float _GradNoise(float2 p){float2 i=floor(p);float2 f=frac(p);float2 u=f*f*(3.0-2.0*f);float a=dot(_Hash2(i+float2(0,0)),f-float2(0,0));float b=dot(_Hash2(i+float2(1,0)),f-float2(1,0));float c=dot(_Hash2(i+float2(0,1)),f-float2(0,1));float d=dot(_Hash2(i+float2(1,1)),f-float2(1,1));return lerp(lerp(a,b,u.x),lerp(c,d,u.x),u.y);}
+            float _FBM(float2 p){float v=0.0;float a=0.5;for(int i=0;i<3;i++){v+=a*_GradNoise(p);p=p*2.0+float2(1.7,9.2);a*=0.5;}return v*0.5+0.5;}
+
+            struct DNAttributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float2 uv:TEXCOORD0; };
+            struct DNVaryings   { float4 positionCS:SV_POSITION; float3 normalWS:TEXCOORD0; float2 uv:TEXCOORD1; };
+
+            DNVaryings DNVert(DNAttributes IN)
+            {
+                DNVaryings OUT;
+                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.uv = IN.uv;
+                return OUT;
+            }
+
+            half4 DNFrag(DNVaryings IN) : SV_Target
+            {
+                float2 noiseUV = IN.uv * _NoiseTiling + _Time.y * _NoiseScrollSpeed;
+                clip(_FBM(noiseUV) - _DissolveAmount);
+                return half4(normalize(IN.normalWS), 0.0); // 世界空间法线
+            }
+            ENDHLSL
+        }
 
         // ══════════════════════════════════════════════
         //  Pass 1: 主渲染
@@ -247,7 +291,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             struct Attributes {
                 float4 positionOS : POSITION;

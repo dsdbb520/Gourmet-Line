@@ -17,7 +17,7 @@ MonoBehaviour:
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
     outlineThickness: 1.5
     normalThreshold: 0.3
-    depthThreshold: 0.01
+    depthThreshold: 999
     renderPassEvent: 300
 --- !u!114 &-1878332245247344467
 MonoBehaviour:

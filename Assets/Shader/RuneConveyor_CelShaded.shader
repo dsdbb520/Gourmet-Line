@@ -66,6 +66,38 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
     {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
 
+        // ── DepthNormals Pass ───────────────────────────────────────────────
+        // 写世界空间法线到 _CameraNormalsTexture，供全局 ScreenSpaceOutline 检测边缘。
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex DepthNormalsVert
+            #pragma fragment DepthNormalsFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct DNAttributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
+            struct DNVaryings   { float4 positionCS : SV_POSITION; float3 normalWS : TEXCOORD0; };
+
+            DNVaryings DepthNormalsVert(DNAttributes IN)
+            {
+                DNVaryings OUT;
+                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
+                return OUT;
+            }
+
+            half4 DepthNormalsFrag(DNVaryings IN) : SV_Target
+            {
+                return half4(normalize(IN.normalWS), 0.0); // 世界空间法线
+            }
+            ENDHLSL
+        }
+
         Pass
         {
             Name "ForwardLit"
@@ -130,8 +162,8 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
                     float2 neighbor = float2(x, y);
                     float2 rng      = _VoroHash(i + neighbor);
                     // 每个细胞内部的随机点随时间缓慢漂移（sin 产生来回抖动）
-                    float2 point    = 0.5 + 0.45 * sin(6.2831 * rng + _Time.y * animSpeed);
-                    float2 diff     = neighbor + point - f;
+                    float2 cellPt   = 0.5 + 0.45 * sin(6.2831 * rng + _Time.y * animSpeed);
+                    float2 diff     = neighbor + cellPt - f;
                     float  dist     = length(diff);
                     if (dist < minDist1) {
                         minDist2 = minDist1;
@@ -238,7 +270,7 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             struct Attributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; };
             struct Varyings   { float4 positionCS:SV_POSITION; };
             Varyings vert(Attributes IN) {

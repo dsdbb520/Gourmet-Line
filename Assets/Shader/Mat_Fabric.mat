@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Mat_Fabric
+  m_Shader: {fileID: 4800000, guid: 81c07d7d3c5638b4e97d2068f48ba525, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 7aee7f9673eaeaf43b159b19c6911f00, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _OutlineWidth: 1.5
+    - _RimIntensity: 0.8
+    - _RimPower: 2.5
+    - _ShadowEdge: 0.15
+    - _ShadowRampThreshold: 0.5
+    - _WarpIntensity: 0.3
+    - _WarpShift: 0.2
+    - _WarpShininess: 90
+    - _WarpThreshold: 0.6
+    - _WeftIntensity: 0.2
+    - _WeftShift: -0.15
+    - _WeftShininess: 60
+    - _WeftThreshold: 0.55
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _OutlineColor: {r: 0.14999998, g: 0.09999997, b: 0.049999982, a: 1}
+    - _RimColor: {r: 0.85, g: 0.7, b: 0.45, a: 1}
+    - _ShadowColor: {r: 0.24999997, g: 0.17999998, b: 0.11999995, a: 1}
+    - _WarpColor: {r: 0.95, g: 0.88, b: 0.7, a: 1}
+    - _WeftColor: {r: 0.8, g: 0.7, b: 0.54999995, a: 1}
+  m_BuildTextureStacks: []

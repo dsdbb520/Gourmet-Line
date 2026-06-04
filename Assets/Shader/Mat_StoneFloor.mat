@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Mat_StoneFloor
+  m_Shader: {fileID: 4800000, guid: e70eb0ad44d859741b8e13b5c32c7e7d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _MossAlbedo:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StoneAlbedo:
+        m_Texture: {fileID: 2800000, guid: 64b8b62bc6b578f4e85b9c355477df1d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _StoneNormal:
+        m_Texture: {fileID: 2800000, guid: d2c485ae81ea04b44bd513049a2356ca, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BlendSharpness: 4
+    - _NormalStrength: 1
+    - _OutlineWidth: 1.5
+    - _RimIntensity: 0.5
+    - _RimPower: 4
+    - _ShadowEdge: 0.08
+    - _ShadowRampThreshold: 0.637
+    - _Tiling: 1.6
+    - _WetIntensity: 0.1
+    - _WetShininess: 80
+    - _WetThreshold: 0.78
+    m_Colors:
+    - _MossColor: {r: 0.21999997, g: 0.34999996, b: 0.14999998, a: 1}
+    - _OutlineColor: {r: 0.079999976, g: 0.079999976, b: 0.059999965, a: 1}
+    - _RimColor: {r: 0.39999998, g: 0.5, b: 0.34999996, a: 1}
+    - _StoneColor: {r: 1, g: 1, b: 1, a: 1}
+    - _WetColor: {r: 0.7, g: 0.75, b: 0.8, a: 1}
+  m_BuildTextureStacks: []

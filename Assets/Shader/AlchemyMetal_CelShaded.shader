@@ -56,7 +56,42 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
 
     SubShader
     {
-        Tags { "RenderType"="Opaque" "Queue"="AlphaTest+51" "RenderPipeline"="UniversalPipeline" }
+        // Queue=Geometry：标准不透明队列（原 2501 改回）。
+        // 改回的关键收益：进入 URP DepthNormals 预通道(≤2500)，使下方 DepthNormals Pass
+        // 生效，从而被全局 ScreenSpaceOutline 描边；SRPDefaultUnlit 描边仍在不透明后执行。
+        Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
+
+        // ── DepthNormals Pass ───────────────────────────────────────────────
+        // 把世界空间法线写入 _CameraNormalsTexture，供全局 ScreenSpaceOutline 检测边缘。
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex DepthNormalsVert
+            #pragma fragment DepthNormalsFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct DNAttributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
+            struct DNVaryings   { float4 positionCS : SV_POSITION; float3 normalWS : TEXCOORD0; };
+
+            DNVaryings DepthNormalsVert(DNAttributes IN)
+            {
+                DNVaryings OUT;
+                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
+                return OUT;
+            }
+
+            half4 DepthNormalsFrag(DNVaryings IN) : SV_Target
+            {
+                return half4(normalize(IN.normalWS), 0.0); // 世界空间法线
+            }
+            ENDHLSL
+        }
 
         // ══════════════════════════════════════════════
         //  Pass 1: 主渲染 — 光照 + 四个金属效果

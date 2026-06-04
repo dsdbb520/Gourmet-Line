@@ -25,7 +25,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: df909641172fb68418526cda02f0c8da, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MatcapTex:
@@ -39,20 +39,21 @@ Material:
     - _AnisoShininess: 300
     - _AnisoThreshold: 0.85
     - _CenterOpacity: 0.85
-    - _DispersionAmount: 0.012
+    - _DispersionAmount: 0.025
     - _EdgeOpacity: 0.25
     - _FresnelPower: 3.5
     - _FresnelTransparency: 0.65
     - _GemIntensity: 2.5
     - _GemShininess: 600
     - _GemThreshold: 0.92
+    - _InnerGlowIntensity: 1.2
     - _MatcapIntensity: 1
-    - _OutlineWidth: 0.8
+    - _OutlineWidth: 0
     - _PulseIntensity: 1.5
     - _PulseSpeed: 0.2
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _RefractionStrength: 0.04
+    - _RefractionStrength: 0.08
     - _RefractionTint: 0.5
     - _RimIntensity: 1.5
     - _RimPower: 2.5
