@@ -1,13 +1,8 @@
 Shader "GourmetLine/RuneConveyor_CelShaded"
 {
-    // Task 1.7 — 魔法符文 / 传送带 Shader
+    // 魔法符文 / 传送带 Shader
     // 把工厂传送带改造成炼金工房的魔法符文传输阵
-    //
-    // 四个核心功能：
-    //   [A] 符文流动    — 符文贴图 UV 随时间沿传送方向滚动
-    //   [B] 发光脉冲    — sin(Time) 驱动 Emission 呼吸，整体魔法感
-    //   [C] Voronoi 粒子 — 程序化 Voronoi 产生闪烁魔法光点，不依赖 Particle System
-    //   [D] 程序符文（可选）— 无贴图时用 Voronoi 边缘线生成符文状网格图案
+
 
     Properties
     {
@@ -66,8 +61,7 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
     {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
 
-        // ── DepthNormals Pass ───────────────────────────────────────────────
-        // 写世界空间法线到 _CameraNormalsTexture，供全局 ScreenSpaceOutline 检测边缘。
+
         Pass
         {
             Name "DepthNormals"
@@ -137,7 +131,7 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
             float  _ShadowRampThreshold; float _ShadowEdge;
             float4 _RimColor;      float  _RimPower;    float _RimIntensity;
 
-            // ── Voronoi 工具函数 ──────────────────────────────────────────────
+            // Voronoi 工具函数
             // 2D Hash：把格子坐标映射为 [0,1]² 内的伪随机点
             float2 _VoroHash(float2 p)
             {
@@ -195,7 +189,7 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
                 float3 L = normalize(mainLight.direction);
                 float3 V = normalize(_WorldSpaceCameraPos - IN.positionWS);
 
-                // ── 基础卡通光照 ─────────────────────────────────────────────
+                // 基础卡通光照
                 float NdotL   = dot(N, L);
                 float litVal  = NdotL * mainLight.shadowAttenuation;
                 float ramp    = smoothstep(_ShadowRampThreshold - _ShadowEdge,
@@ -205,18 +199,17 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
                                                   half3(1, 1, 1), ramp)
                                 * mainLight.color;
 
-                // ── [B] 全局脉冲 ─────────────────────────────────────────────
+                // 全局脉冲
                 // sin 映射到 [1-PulseDepth, 1]：PulseDepth=0 → 常亮，PulseDepth=1 → 0~1 完整呼吸
                 float pulse = 1.0 - _PulseDepth * (sin(_Time.y * _PulseSpeed) * 0.5 + 0.5);
 
-                // ── [A] 符文流动 ─────────────────────────────────────────────
-                // UV 沿 _FlowDirection 随时间偏移
+                // 符文流动
                 float2 flowDir   = normalize(_FlowDirection.xy + float2(0.0001, 0.0));
                 float2 runeUV    = IN.uv * _RuneTiling + flowDir * _Time.y * _FlowSpeed;
                 half4  runeSample = tex2D(_RuneTex, runeUV);
                 half3  runeEmit  = runeSample.rgb * _RuneColor.rgb * _RuneIntensity * pulse;
 
-                // ── [D] 程序化符文（Voronoi 边缘线）────────────────────────
+                // 程序化符文
                 // 当 _RuneTex 为 black 时（用户未设置），用 Voronoi 边缘线替代
                 // Voronoi 边缘 = minDist1 ≈ minDist2 的区域（两个细胞等距边界）
                 // 这条边界线形成网格状图案，类似魔法阵/电路板
@@ -232,7 +225,7 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
                                     * (1.0 - useTexture);
                 runeEmit += procRune;
 
-                // ── [C] Voronoi 魔法粒子 ─────────────────────────────────────
+                // Voronoi 魔法粒子
                 // 原理：
                 //   1. Voronoi 把 UV 空间划分成细胞，每个细胞内有一个随机漂移的点
                 //   2. 到该点距离极小时 → 亮（粒子核心）
@@ -247,13 +240,12 @@ Shader "GourmetLine/RuneConveyor_CelShaded"
                                      + vo.y * 6.2831) * 0.5 + 0.5;
                 half3  particles = _ParticleColor.rgb * core * flicker * _ParticleIntensity;
 
-                // ── Rim Light ───────────────────────────────────────────────
+                // Rim Light
                 float NdotV = saturate(dot(N, V));
                 float rimI  = pow(1.0 - NdotV, _RimPower) * _RimIntensity;
                 half3 rim   = _RimColor.rgb * rimI;
 
-                // ── 合成 ────────────────────────────────────────────────────
-                // 传送带表面（暗）+ 符文发光（加法）+ 粒子（加法）+ 边缘光
+                // 合成
                 half3 finalColor = litBase + runeEmit + particles + rim;
 
                 return half4(finalColor, 1.0);

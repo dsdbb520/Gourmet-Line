@@ -1,11 +1,7 @@
 Shader "GourmetLine/Wood_CelShaded"
 {
-    // Task 1.8 — 环境材质：木材架子
-    //
-    // 三个核心功能：
-    //   [A] Detail Normal Map — 叠加木纹细节法线，表现年轮/纤维感
-    //   [B] 暖色卡通色调     — 对 albedo 做冷暖分离，暗部偏冷棕，亮部偏暖黄
-    //   [C] 木纹高光         — 沿木纹方向（切线方向）的弱各向异性高光
+    // 环境材质：木材架子
+
 
     Properties
     {
@@ -14,12 +10,11 @@ Shader "GourmetLine/Wood_CelShaded"
 
         [Header(Detail Normal)]
         _DetailNormalMap("Detail Normal Map (Wood Grain)", 2D) = "bump" {}
-        // Detail 贴图缩放倍数（通常比主贴图 tiling 高 4~8 倍）
         _DetailTiling("Detail Tiling", Float) = 4.0
         _DetailNormalStrength("Detail Normal Strength", Range(0, 2)) = 0.6
 
         [Header(Cel Tone)]
-        // 暗部叠色：阴影区域偏向冷棕（木材在阴影里的环境光感）
+        // 暗部叠色：阴影区域偏向冷棕
         _ShadowColor("Shadow Tint", Color) = (0.28, 0.18, 0.10, 1)
         _ShadowRampThreshold("Shadow Threshold", Range(0, 1)) = 0.48
         _ShadowEdge("Shadow Edge", Range(0, 0.3)) = 0.06
@@ -46,8 +41,6 @@ Shader "GourmetLine/Wood_CelShaded"
     {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
 
-        // ── DepthNormals Pass ───────────────────────────────────────────────
-        // 写世界空间法线到 _CameraNormalsTexture，供全局 ScreenSpaceOutline 检测边缘。
         Pass
         {
             Name "DepthNormals"
@@ -95,7 +88,7 @@ Shader "GourmetLine/Wood_CelShaded"
             struct Attributes {
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
-                float4 tangentOS  : TANGENT;  // [A][C] 法线贴图和各向异性需要切线
+                float4 tangentOS  : TANGENT;
                 float2 uv         : TEXCOORD0;
             };
 
@@ -138,9 +131,7 @@ Shader "GourmetLine/Wood_CelShaded"
                 float3 L = normalize(mainLight.direction);
                 float3 V = normalize(_WorldSpaceCameraPos - IN.positionWS);
 
-                // ── [A] Detail Normal Map ────────────────────────────────────
-                // 木纹细节法线使用更高频率的 UV 采样，叠加在基础法线上
-                // 效果：表面有年轮/纤维的微观起伏，使高光更真实
+                // Detail Normal Map
                 float3 detailTSNormal = UnpackNormal(
                     tex2D(_DetailNormalMap, IN.uv * _DetailTiling));
                 // 在切线空间内混合：XY 叠加后归一化（简单方案，适合非 90° 法线）
@@ -158,7 +149,7 @@ Shader "GourmetLine/Wood_CelShaded"
                 float  NdotL = dot(N, L);
                 float  NdotV = saturate(dot(N, V));
 
-                // ── [B] 暖色卡通阴影 ─────────────────────────────────────────
+                // 暖色卡通阴影
                 // 暗部用 _ShadowColor（冷棕）而非纯黑，使阴影有"室内暖光反弹"感
                 // 比白色 lerp 更有层次：亮部保持原木色，暗部有自己的颜色倾向
                 float litVal   = dot(N, L) * mainLight.shadowAttenuation;
@@ -168,7 +159,7 @@ Shader "GourmetLine/Wood_CelShaded"
                 half3 litBase  = albedo.rgb * lerp(_ShadowColor.rgb, half3(1,1,1), ramp)
                                  * mainLight.color;
 
-                // ── [C] 木纹方向高光 ─────────────────────────────────────────
+                // 木纹方向高光
                 // 与金属各向异性相比：shininess 低（木材表面漆层不如金属光滑）
                 //                    threshold 低（高光更宽、更柔和）
                 //                    intensity 低（漆层反光，不是金属镜面）
@@ -179,7 +170,7 @@ Shader "GourmetLine/Wood_CelShaded"
                 grainSpec       *= step(0.0, NdotL);
                 half3 grainLight = _GrainSpecColor.rgb * grainSpec * _GrainIntensity;
 
-                // ── Rim Light ───────────────────────────────────────────────
+                // Rim Light
                 float rimI = pow(1.0 - NdotV, _RimPower) * _RimIntensity;
                 half3 rim  = _RimColor.rgb * rimI;
 

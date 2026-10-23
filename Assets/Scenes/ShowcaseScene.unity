@@ -1227,7 +1227,7 @@ Transform:
   m_GameObject: {fileID: 153784764}
   serializedVersion: 2
   m_LocalRotation: {x: 0.1320913, y: -0, z: -0, w: 0.9912376}
-  m_LocalPosition: {x: 0, y: 11.095693, z: -34.627476}
+  m_LocalPosition: {x: -20.28, y: 3.85, z: -7.91}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1664,7 +1664,7 @@ TextMesh:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 295813378}
   m_Text: "<AlchemyMetal>\nKajiya-Kay\u5404\u5411\u5F02\u6027 + Matcap\u53CD\u5C04
-    + \u53D7\u70ED\u53D1\u5149"
+    + \u53D7\u70ED\u53D1\u5149\nRim + \u9876\u70B9\u8272\u8FB9\u7F18\u78E8\u635F"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1
@@ -2104,13 +2104,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 383322531}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.86602545, z: 0, w: 0.49999994}
   m_LocalPosition: {x: 0, y: 1.8, z: 0}
   m_LocalScale: {x: 1849.5792, y: 1849.5792, z: 1849.5792}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1708023224}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 120, z: 0}
 --- !u!114 &383322533
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2545,7 +2545,7 @@ TextMesh:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 574010224}
   m_Text: "<PipeFluidVAT>\nHoudini\u6D41\u4F53 \u2192 VAT\u9876\u70B9\u52A8\u753B\u8D34\u56FE
-    \u2192 GPU\u91CD\u5EFA + \u73BB\u7483\u7BA1\u6298\u5C04"
+    \u2192 \u6C34\u4F53\u6298\u5C04"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1
@@ -2642,7 +2642,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 599697813}
-  m_Text: "<Fabric>\n\u53CC\u5C42\u5404\u5411\u5F02\u6027(\u7ECF\u7EBFWarp+\u7EAC\u7EBFWeft)
+  m_Text: "<Fabric>\n\u53CC\u5C42\u5404\u5411\u5F02\u6027(\u7ECF\u7EBF+\u7EAC\u7EBF)
     + Cel\u786C\u8FB9"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
@@ -2895,8 +2895,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 663569480}
-  m_Text: "<Dissolve>\nFBM\u7A0B\u5E8F\u566A\u58F0\u6EB6\u89E3 + \u53D1\u5149\u6EB6\u89E3\u8FB9
-    + UV\u70ED\u6D6A\u626D\u66F2"
+  m_Text: "<Dissolve>\nFBM\u7A0B\u5E8F\u566A\u58F0\u6EB6\u89E3 + \u53D1\u5149\u6EB6\u89E3\u8FB9"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1
@@ -4705,7 +4704,7 @@ TextMesh:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1221165301}
   m_Text: "<Crystal>\n\u5C4F\u5E55\u7A7A\u95F4\u6298\u5C04 + RGB\u8272\u6563 + \u80CC\u5149\u900F\u8272
-    + Emission\u8109\u51B2"
+    + Emission\u8109\u51B2\nRim + \u53CCMatcap\u91C7\u6837\u5185\u90E8\u8F89\u5149"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1
@@ -6416,7 +6415,7 @@ TextMesh:
   m_GameObject: {fileID: 1919071630}
   m_Text: "<ScreenSpaceOutline>\n\u5168\u5C40\u5C4F\u5E55\u7A7A\u95F4\u63CF\u8FB9
     (\u6DF1\u5EA6/\u6CD5\u7EBF\u8FB9\u7F18\u68C0\u6D4B) \xB7 \u63CF\u51FA\u6BCF\u6761\u8FB9/\u6298\u89D2/\u4EA4\u754C
-    \xB7 \u9762\u677F\u53EF\u5F00\u5173"
+    \xB7 \u9762\u677F\u53EF\u5F00\u5173\n\u4F7F\u7528Roberts Cross\u91C7\u6837\u6BCF\u4E00\u6761\u8FB9"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1
@@ -6513,8 +6512,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1963124033}
-  m_Text: "<Wood>\nDetail\u6CD5\u7EBF\u6728\u7EB9 + \u51B7\u6696\u5206\u79BB\u5361\u901A\u8C03
-    + \u6728\u7EB9\u9AD8\u5149"
+  m_Text: "<Wood>\n\u6CD5\u7EBF\u6728\u7EB9 + \u5361\u901A\u9634\u5F71 + \u6728\u7EB9\u9AD8\u5149"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1
@@ -7052,7 +7050,7 @@ TextMesh:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2098417273}
   m_Text: "<StoneFloor>\nTriplanar\u4E09\u5E73\u9762\u6620\u5C04 + \u82D4\u85D3mask
-    + \u6E7F\u6DA6\u9AD8\u5149"
+    + \u6E7F\u6DA6\u9AD8\u5149\n\u5361\u901A\u9634\u5F71"
   m_OffsetZ: 0
   m_CharacterSize: 0.16
   m_LineSpacing: 1

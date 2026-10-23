@@ -1,18 +1,7 @@
 Shader "GourmetLine/Dissolve_Alchemy"
 {
-    // Task 1.6 — 溶解 / 炼金反应 Shader
+    // 溶解 / 炼金反应 Shader
     // 当原材料放入炼金炉时播放的视觉效果
-    //
-    // 四个核心功能：
-    //   [A] Noise 溶解   — FBM 程序化噪声 + clip()，从边缘向内侶食消失
-    //   [B] 发光溶解边   — smoothstep 检测边界区域，叠加 Emission，双色渐变
-    //   [C] UV 热浪扭曲  — 独立噪声驱动 UV 偏移，随时间流动，溶解越深扭曲越强
-    //   [D] 对外接口     — _DissolveAmount (0→1)，由 C# AnimationCurve 或 Tween 驱动
-    //
-    // C# 调用示例：
-    //   mat.SetFloat("_DissolveAmount", dissolveValue); // 0=完整 1=消失
-    //
-    // 噪声实现：纯程序化 FBM（3 层梯度噪声叠加），不依赖额外贴图
 
     Properties
     {
@@ -21,7 +10,6 @@ Shader "GourmetLine/Dissolve_Alchemy"
 
         [Header(Dissolve)]
         // 0 = 完整不溶解，1 = 完全消失
-        // 由 C# 的 AnimationCurve 控制，ProcessorMachine 完成时触发
         [Range(0,1)] _DissolveAmount("Dissolve Amount", Float) = 0.0
         // 噪声 UV 缩放：越大噪声越细碎（溶解块越小），越小越大块
         _NoiseTiling("Noise Tiling", Float) = 3.0
@@ -56,13 +44,9 @@ Shader "GourmetLine/Dissolve_Alchemy"
 
     SubShader
     {
-        // AlphaTest 队列：使用 clip() 裁切，必须在此队列才能正确投影
-        // (≤2500 → 也会进入 URP DepthNormals 预通道，下方 DepthNormals Pass 才生效)
+
         Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" "RenderPipeline"="UniversalPipeline" }
 
-        // ── DepthNormals Pass（含溶解 clip）──────────────────────────────────
-        // 写世界空间法线供全局 ScreenSpaceOutline 检测边缘；必须与主 Pass 同步 clip，
-        // 否则已溶解消失的部分仍写法线，会被全局描边勾出"幽灵轮廓"。
         Pass
         {
             Name "DepthNormals"
@@ -75,12 +59,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
             #pragma fragment DNFrag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            float _DissolveAmount; float _NoiseTiling; float _NoiseScrollSpeed;
-
-            // 复用与主 Pass 一致的噪声，保证 clip 结果相同
-            float2 _Hash2(float2 p){p=float2(dot(p,float2(127.1,311.7)),dot(p,float2(269.5,183.3)));return frac(sin(p)*43758.5453);}
-            float _GradNoise(float2 p){float2 i=floor(p);float2 f=frac(p);float2 u=f*f*(3.0-2.0*f);float a=dot(_Hash2(i+float2(0,0)),f-float2(0,0));float b=dot(_Hash2(i+float2(1,0)),f-float2(1,0));float c=dot(_Hash2(i+float2(0,1)),f-float2(0,1));float d=dot(_Hash2(i+float2(1,1)),f-float2(1,1));return lerp(lerp(a,b,u.x),lerp(c,d,u.x),u.y);}
-            float _FBM(float2 p){float v=0.0;float a=0.5;for(int i=0;i<3;i++){v+=a*_GradNoise(p);p=p*2.0+float2(1.7,9.2);a*=0.5;}return v*0.5+0.5;}
+            #include "Dissolve_Shared.hlsl"  // 材质 CBUFFER + 噪声函数
 
             struct DNAttributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float2 uv:TEXCOORD0; };
             struct DNVaryings   { float4 positionCS:SV_POSITION; float3 normalWS:TEXCOORD0; float2 uv:TEXCOORD1; };
@@ -103,9 +82,8 @@ Shader "GourmetLine/Dissolve_Alchemy"
             ENDHLSL
         }
 
-        // ══════════════════════════════════════════════
+
         //  Pass 1: 主渲染
-        // ══════════════════════════════════════════════
         Pass
         {
             Name "ForwardLit"
@@ -135,59 +113,11 @@ Shader "GourmetLine/Dissolve_Alchemy"
                 float4 shadowCoord: TEXCOORD3;
             };
 
-            sampler2D _BaseMap;   float4 _BaseColor;
-            float  _DissolveAmount;
-            float  _NoiseTiling;  float  _NoiseScrollSpeed;
-            float  _EdgeWidth;
-            float4 _EdgeColorHot; float4 _EdgeColorCool; float _EdgeIntensity;
-            float  _DistortStrength; float _DistortNoiseScale;
-            float4 _HeatColor;    float  _HeatIntensity;
-            float4 _RimColor;     float  _RimPower;  float _RimIntensity;
-
-            // ── 噪声函数 ────────────────────────────────────────────────────
-            // 2D Hash：把 float2 坐标映射成伪随机方向向量
-            float2 _Hash2(float2 p)
-            {
-                p = float2(dot(p, float2(127.1, 311.7)),
-                           dot(p, float2(269.5, 183.3)));
-                return frac(sin(p) * 43758.5453);
-            }
-
-            // 梯度噪声 (Gradient Noise)：
-            //   在每个整数格点放一个随机方向向量
-            //   用到格点的 dot(grad, offset) 做双线性插值
-            //   输出范围 [-1, 1]
-            float _GradNoise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-                // Hermite 平滑插值曲线（比线性插值更光滑，无明显方块感）
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = dot(_Hash2(i + float2(0,0)), f - float2(0,0));
-                float b = dot(_Hash2(i + float2(1,0)), f - float2(1,0));
-                float c = dot(_Hash2(i + float2(0,1)), f - float2(0,1));
-                float d = dot(_Hash2(i + float2(1,1)), f - float2(1,1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
-            // FBM (Fractional Brownian Motion)：
-            //   叠加 3 层不同频率/振幅的梯度噪声
-            //   低频（大块）+ 中频 + 高频（细节）→ 有机状的云/岩石纹理
-            //   振幅减半、频率翻倍 = 每层细节更细但权重更小
-            //   输出范围约 [0, 1]（通过 * 0.5 + 0.5 重映射）
-            float _FBM(float2 p)
-            {
-                float v = 0.0;
-                float a = 0.5;
-                for (int i = 0; i < 3; i++)
-                {
-                    v += a * _GradNoise(p);
-                    // 偏移避免每层噪声的格点重合
-                    p  = p * 2.0 + float2(1.7, 9.2);
-                    a *= 0.5;
-                }
-                return v * 0.5 + 0.5;
-            }
+            // 纹理/采样器是资源，不进 CBUFFER，单独声明
+            TEXTURE2D(_BaseMap);
+            SAMPLER(sampler_BaseMap);
+            // 材质常量 CBUFFER + 噪声函数
+            #include "Dissolve_Shared.hlsl"
 
             Varyings vert(Attributes IN)
             {
@@ -209,7 +139,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
                 float  NdotL = saturate(dot(N, L));
                 float  NdotV = saturate(dot(N, V));
 
-                // ── [C] UV 热浪扭曲 ─────────────────────────────────────────
+                // UV 热浪扭曲
                 // 用独立噪声随时间流动扰动 UV
                 // 乘以 saturate(_DissolveAmount * 4.0)：
                 //   溶解刚开始时扭曲从 0 快速增加，到 _DissolveAmount=0.25 时已达满值
@@ -221,7 +151,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
                 float2 uv    = IN.uv + dOff * _DistortStrength
                                * saturate(_DissolveAmount * 4.0);
 
-                // ── [A] Noise 溶解 ───────────────────────────────────────────
+                // Noise 溶解
                 // FBM 采样：使用扭曲后的 UV + 时间漂移
                 //   → 噪声随时间缓慢流动，溶解边缘像液体一样"活着"
                 float2 noiseUV  = uv * _NoiseTiling
@@ -232,9 +162,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
                 // noiseVal 低的区域先溶解，高的区域留到最后
                 clip(noiseVal - _DissolveAmount);
 
-                // ── [B] 发光溶解边 ───────────────────────────────────────────
-                // 溶解边缘 = noiseVal 刚好大于 _DissolveAmount 的一条细带
-                //
+                // 发光溶解边
                 // edgeFactor：
                 //   在 [_DissolveAmount, _DissolveAmount + _EdgeWidth] 内从 1 → 0
                 //   noiseVal 越接近 clip 边界，edgeFactor 越大（越亮）
@@ -248,26 +176,24 @@ Shader "GourmetLine/Dissolve_Alchemy"
                                           edgeFactor);
                 half3 edgeEmission = edgeColor * edgeFactor * _EdgeIntensity;
 
-                // ── 采样 Albedo（使用热浪扭曲后的 UV）────────────────────────
-                half4 albedo = tex2D(_BaseMap, uv) * _BaseColor;
+                //采样
+                half4 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv) * _BaseColor;
 
-                // ── 整体受热染色 ─────────────────────────────────────────────
+                // 整体受热染色
                 // 随溶解进度将表面颜色向 _HeatColor 偏移
                 // 视觉效果：物体刚开始溶解时就像被高温炙烤，全身泛橙红
                 half3 heated = lerp(albedo.rgb,
                                     albedo.rgb * _HeatColor.rgb,
                                     _DissolveAmount * _HeatIntensity);
 
-                // ── 基础光照（简单半步 cel）──────────────────────────────────
+                // 基础光照
                 half3 litBase = heated * (0.4 + 0.6 * NdotL) * mainLight.color;
 
-                // ── Rim Light ────────────────────────────────────────────────
+                // Rim Light
                 float rimI = pow(1.0 - NdotV, _RimPower) * _RimIntensity;
                 half3 rim  = _RimColor.rgb * rimI;
 
-                // ── 合成 ─────────────────────────────────────────────────────
-                // 顺序：基础色 + 边缘发光（Additive）+ 边缘光
-                // 边缘发光用加法混合：让溶解边缘真正"发光"，而非只是变色
+                // 合成
                 half3 finalColor = litBase + edgeEmission + rim;
 
                 return half4(finalColor, 1.0);
@@ -275,9 +201,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
             ENDHLSL
         }
 
-        // ══════════════════════════════════════════════
         //  Pass 2: 阴影投射（必须同步 clip，否则溶解后仍有阴影）
-        // ══════════════════════════════════════════════
         Pass
         {
             Name "ShadowCaster"
@@ -304,32 +228,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
                 float2 uv         : TEXCOORD0;
             };
 
-            float _DissolveAmount;
-            float _NoiseTiling;
-            float _NoiseScrollSpeed;
-
-            // 复用同一套噪声函数（Shadow Pass 必须与主 Pass clip 结果一致）
-            float2 _Hash2(float2 p) {
-                p = float2(dot(p, float2(127.1, 311.7)),
-                           dot(p, float2(269.5, 183.3)));
-                return frac(sin(p) * 43758.5453);
-            }
-            float _GradNoise(float2 p) {
-                float2 i = floor(p); float2 f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = dot(_Hash2(i+float2(0,0)), f-float2(0,0));
-                float b = dot(_Hash2(i+float2(1,0)), f-float2(1,0));
-                float c = dot(_Hash2(i+float2(0,1)), f-float2(0,1));
-                float d = dot(_Hash2(i+float2(1,1)), f-float2(1,1));
-                return lerp(lerp(a,b,u.x), lerp(c,d,u.x), u.y);
-            }
-            float _FBM(float2 p) {
-                float v=0.0; float a=0.5;
-                for(int i=0;i<3;i++){
-                    v += a*_GradNoise(p); p=p*2.0+float2(1.7,9.2); a*=0.5;
-                }
-                return v*0.5+0.5;
-            }
+            #include "Dissolve_Shared.hlsl"  // 材质 CBUFFER + 噪声
 
             Varyings vert(Attributes IN)
             {
@@ -351,9 +250,7 @@ Shader "GourmetLine/Dissolve_Alchemy"
             ENDHLSL
         }
 
-        // ══════════════════════════════════════════════
         //  Pass 3: 描边
-        // ══════════════════════════════════════════════
         Pass
         {
             Name "Outline"
@@ -365,16 +262,10 @@ Shader "GourmetLine/Dissolve_Alchemy"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            float _DissolveAmount;
-            float _NoiseTiling;
-            float _NoiseScrollSpeed;
+            #include "Dissolve_Shared.hlsl"  // 材质 CBUFFER + 噪声
 
             struct Attributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float2 uv:TEXCOORD0; };
             struct Varyings   { float4 positionCS:SV_POSITION; float2 uv:TEXCOORD0; };
-
-            float2 _Hash2(float2 p){p=float2(dot(p,float2(127.1,311.7)),dot(p,float2(269.5,183.3)));return frac(sin(p)*43758.5453);}
-            float _GradNoise(float2 p){float2 i=floor(p);float2 f=frac(p);float2 u=f*f*(3.0-2.0*f);float a=dot(_Hash2(i+float2(0,0)),f-float2(0,0));float b=dot(_Hash2(i+float2(1,0)),f-float2(1,0));float c=dot(_Hash2(i+float2(0,1)),f-float2(0,1));float d=dot(_Hash2(i+float2(1,1)),f-float2(1,1));return lerp(lerp(a,b,u.x),lerp(c,d,u.x),u.y);}
-            float _FBM(float2 p){float v=0.0;float a=0.5;for(int i=0;i<3;i++){v+=a*_GradNoise(p);p=p*2.0+float2(1.7,9.2);a*=0.5;}return v*0.5+0.5;}
 
             Varyings vert(Attributes IN)
             {

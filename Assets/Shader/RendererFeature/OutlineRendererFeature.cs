@@ -10,7 +10,7 @@ public class OutlineRendererFeature : ScriptableRendererFeature
         public Color outlineColor = Color.black;
         [Range(0.5f, 5f)] public float outlineThickness = 1f;
         [Range(0f, 1f)]   public float normalThreshold  = 0.3f;
-        [Tooltip("深度边缘检测阈值。保持 999 = 禁用（推荐）；调低如 0.1 可开启，但可能出现背景描边穿透到前景。")]
+        [Tooltip("深度边缘检测阈值。调低可开启，但可能出现背景描边穿透到前景。")]
         public float depthThreshold = 999f;
         public RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
@@ -39,7 +39,7 @@ public class OutlineRendererFeature : ScriptableRendererFeature
         if (renderingData.cameraData.cameraType == CameraType.Preview) return;
 
         outlinePass.Setup(settings);
-        // 自动请求深度图和法线图（无需在 URP Asset 里手动勾选）
+        // 自动请求深度图和法线图
         outlinePass.ConfigureInput(ScriptableRenderPassInput.Normal | ScriptableRenderPassInput.Depth);
         renderer.EnqueuePass(outlinePass);
     }
@@ -49,7 +49,6 @@ public class OutlineRendererFeature : ScriptableRendererFeature
         CoreUtils.Destroy(outlineMaterial);
     }
 
-    // ─── Inner Pass ─────────────────────────────────────────────────────────────
 
     class OutlinePass : ScriptableRenderPass
     {

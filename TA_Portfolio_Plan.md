@@ -1,624 +1,391 @@
-# Gourmet-Line TA 作品集推进计划 v2
+# Gourmet-Line TA 作品集推进计划 v3
 
 > **目标风格**：二次元中世纪炼金工房，参考《莱莎的炼金工房》渲染风格  
-> **技术栈**：Unity URP + ShaderGraph + HLSL + Houdini (VAT / 程序化建模)  
-> **作品集定位**：以 Shader + Houdini 技术为双核心，格子建造系统作为交互载体
+> **技术栈**：Unity URP + HLSL + Houdini (VAT / 程序化建模)  
+> **作品集定位**：渲染 TA（风格化 NPR 渲染）为主轴，Houdini VAT 为差异化亮点  
+> **当前状态**：Phase 0/1/5 基本完成，已发布作品集初版；Phase 2 是下一个重点
 
 ---
 
-## 关于 NPR 渲染的解释
-
-**Gemini 说的没错，但需要更精确地理解 NPR（非真实感渲染）。**
-
-你现在写的 CelShader 本身就是 NPR 的一种——NPR 是一个大类，  
-卡通着色、水彩风、速写风都属于 NPR。问题不是"要不要加 NPR"，  
-而是你的 NPR 渲染管线目前只完成了**第一层（物体级 Shader）**，  
-还差**第二层（管线级 Renderer Feature）**和**第三层（屏幕级 Post-Process）**。
+## NPR 三层渲染管线（架构说明）
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  完整 NPR 渲染管线（三层架构）                            │
 ├───────────────┬─────────────────────────────────────────┤
-│ 第三层        │ Post-Processing（屏幕空间）               │
+│ 第三层 ✅     │ Post-Processing（屏幕空间）               │
 │ 屏幕级        │ Bloom / Color Grading / Vignette         │
-│               │ ← 让魔法物品发光、建立炼金工房色调         │
 ├───────────────┼─────────────────────────────────────────┤
-│ 第二层        │ URP Renderer Feature（渲染管线注入）       │
-│ 管线级        │ Screen-Space Outline（全屏描边）           │
-│               │ Custom Shadow Ramp（阴影也卡通化）         │
-│               │ Render Objects（多 Pass 材质覆盖）         │
+│ 第二层 ✅     │ URP Renderer Feature（渲染管线注入）       │
+│ 管线级        │ Screen-Space Outline（法线+深度边缘检测）  │
+│               │ DepthNormals Pass（全部 Cel Shader 已补） │
 ├───────────────┼─────────────────────────────────────────┤
-│ 第一层        │ 每个物体的 Shader（已有部分）              │
-│ 物体级        │ Cel Shading / Ramp / Rim / Specular       │
-│               │ 玻璃 / 液体 / VAT 流体 / 晶体 / 金属      │
+│ 第一层 ✅     │ 8 个自定义 HLSL Shader                   │
+│ 物体级        │ Cel / 金属 / 晶体 / 溶解 / 符文 / 环境   │
 └───────────────┴─────────────────────────────────────────┘
 ```
-
-**所以接下来要做的就是把三层全部填满。**
 
 ---
 
 ## 总览路线图
 
 ```
-Phase 0  NPR 管线架构         ← 补完第二、三层，搭好整体框架
-Phase 1  物体级 Shader 库     ← 扩充材质种类（晶体/金属/溶解/符文...）
-Phase 2  Houdini 流体效果     ← VAT 多类型（重点）+ 程序化建模
-Phase 3  场景氛围重构         ← 光照 + 材质替换
-Phase 4  英雄资产打磨         ← 核心道具 + 展示场景
-Phase 5  作品集收尾           ← Showreel + 文档
+Phase 0  NPR 管线架构     ✅ 完成
+Phase 1  物体级 Shader 库 ✅ 完成（8个HLSL Shader）
+Phase 2  Houdini VAT     🔲 进行中（管道流体已做，其余待做）← 当前重点
+Phase 3  场景氛围重构     🔲 未开始
+Phase 4  英雄资产打磨     🔲 未开始
+Phase 5  作品集收尾       ✅ 初版完成（README + GIF + 展示场景）
 ```
 
 ---
 
-## Phase 0：NPR 渲染管线架构
+## Phase 0 & 1：已完成内容速览
 
-### Task 0.1 — URP Renderer Feature：Screen-Space Outline
-**新建文件**：`Assets/Shader/RendererFeature/OutlineRendererFeature.cs`  
-**优先级**：★★★★★  
-**工作量**：~2~3小时  
+### Phase 0 — NPR 管线架构 ✅
 
-**为什么需要**  
-背面膨胀法是物体级描边，无法处理：
-- 不同物体之间的边界（A物体挡住B物体的轮廓）
-- 透明物体描边（玻璃瓶描边）
-- 描边宽度随距离自动调整
+| 任务 | 实现内容 | 关键技术 |
+|---|---|---|
+| Screen-Space Outline | `OutlineRendererFeature.cs` + `ScreenSpaceOutline.shader` | 法线边缘检测 / Blit 后处理 / Always Included Shaders（build修复）|
+| DepthNormals Pass | 全部 8 个 Cel Shader 补写 | 让全局描边能描出内部折角/物体交界 |
+| Post-Processing | 接入已有 `SampleSceneProfile.asset` | Bloom / Tonemapping / LiftGammaGain / Vignette |
 
-Screen-Space Outline 基于深度图和法线图的差值，在全屏空间计算边缘，以上问题全部解决。
+### Phase 1 — 物体级 Shader 库 ✅
 
-**具体要做**
+| Shader | 核心技术点 |
+|---|---|
+| AnimeFood（卡通基础） | Ramp卡通阴影 / 伪SSS / Rim / Cel硬边高光 / Clip-Space描边 |
+| AlchemyMetal（金属） | Kajiya-Kay各向异性高光 / Matcap反射 / 顶点色磨损mask / World-Y受热发光 |
+| Crystal（晶体） | 屏幕空间折射(CameraOpaqueTexture) / RGB三通道色散 / Fresnel透明度 / 背光透色 / 内部辉光 / sin(Time)脉冲 |
+| Dissolve（溶解） | FBM 3层梯度噪声 / clip()溶解 / 发光溶解边双色渐变 / UV热浪扭曲 / ShadowCaster同步clip |
+| RuneConveyor（符文） | UV定向流动 / sin(Time)全局脉冲 / Voronoi程序粒子（不依赖ParticleSystem）|
+| StoneFloor（石板） | Triplanar三平面映射 / 顶点色G通道苔藓mask / 湿润高光 |
+| Wood（木材） | Detail Normal Map叠加木纹 / 冷暖分离卡通调 / 弱各向异性木纹高光 |
+| Fabric（布料） | 双层各向异性（经线Warp+纬线Weft）/ Cel step硬边化 |
 
-- [ ] 创建自定义 `ScriptableRendererFeature`，在 AfterRenderingOpaques 注入描边 Pass
-- [ ] 在描边 Pass 里采样 `_CameraDepthTexture` 和 `_CameraNormalsTexture`
-- [ ] 用 Sobel / Roberts Cross 算子计算边缘强度
-- [ ] 支持参数：`OutlineColor`, `OutlineThickness`, `DepthThreshold`, `NormalThreshold`
-- [ ] 在 URP Asset 的 Renderer 列表里加入这个 Feature
-- [ ] （可选）加入描边颜色随深度变化（近处深、远处浅，增加景深感）
+**遗留未完成**：
+- [ ] `SG_PotionFlask`（药水瓶完整版）：液面截断 / 气泡 / 晃动——有框架但未完善，Phase 4 英雄资产时一起做
+- [ ] Stone Triplanar 改为**物体空间**采样——当前世界空间导致旋转时纹理滑动，改动约 5 行 HLSL
+
+---
+
+## Phase 2：Houdini VAT 效果（当前重点）🔲
+
+> **为什么这是最重要的**：
+> 你的渲染 Shader 质量已经达到能投简历的水平，但一份"只会写 Shader"的 TA 作品集和"会 Shader + 会 Houdini 并打通引擎"的作品集，在面试官眼里是完全不同的量级。  
+> 目前只有管道流体一个 VAT，面试官大概率会追问"你用 Houdini 只做了这一种？"。把 VAT 的**广度**补上，是现在性价比最高的投入。
+
+---
+
+### ✅ 已完成：管道流体 VAT
+- FLIP 流体在玻璃管道内流动，SideFX GameDev VAT 导出
+- pos/rot/col/lookup EXR 贴图，Shader 内置时间自动循环（Loop 40~80帧）
+- build 修复：Vertex Compression 关闭 / VATBoundsExpander 修复视锥剔除
+
+---
+
+### Task 2.2 — 液体倾倒 VAT ⭐⭐⭐⭐⭐（最高优先）
+
+**为什么先做这个**  
+炼金工房最标志性的视觉动作——把药瓶里的液体倒进大锅里。这个效果：
+- 视觉冲击力最强，录出来最好看
+- 能复用现有资产（药水瓶 FBX + Crystal/PotionFlask Shader）
+- 证明你能设计一个完整的**模拟 → 导出 → 引擎播放 → 材质表现**的链路，而不仅是"接入了一个现成 VAT"
+
+**Houdini 端**
+- [ ] 搭建场景：倾斜的烧瓶 + 接收容器（大锅或烧杯），导入现有药水瓶 FBX 作参考
+- [ ] FLIP Fluid 模拟倾倒过程，关键参数：`Surface Tension 0.2`（液体有粘性）/ `Viscosity 0.05`（不过稠）/ `Gravity -9.8`
+- [ ] 注意帧数：约 60~90 帧（2~3 秒），太短看不出流动，太长文件偏大
+- [ ] 用 **SideFX Labs VAT** 导出（Soft Body 模式），勾选导出 Color（可存额外数据如速度）
+- [ ] 导出设置：`Texture Format EXR` / `关 Mip` / `关 sRGB` / `不压缩`（pos/rot 是数据不是颜色）
+
+**Unity 端**
+- [ ] 新建 `VAT_LiquidPour.shadergraph`，复用管道流体 VAT 的基础采样框架（VertexID → UV 采样 pos 贴图）
+- [ ] 液体材质：半透明 + 屏幕空间折射 + Emission（发光颜色参数化，炼金液体可以是蓝/绿/橙）
+- [ ] 落点水花：可以是同一套 VAT 的后半段粒子飞溅，或单独录一个小范围 Grain VAT 叠加
+- [ ] C# 驱动：`DissolveLoop.cs` 改为通用的 `VATPlayer.cs`，暴露 `PlayOnce()` 方法，让 ProcessorMachine 完成时触发
 
 **验收标准**  
-关掉各物体 Shader 里的 Outline Pass，由全局 Feature 统一提供描边，物体之间的接触边缘也能显示描边。
+从烧瓶到容器，液体形态自然（有弧度、有飞溅），材质有折射感和发光感，可以 C# 触发一次性播放。
 
 ---
 
-### Task 0.2 — URP Renderer Feature：Shadow Ramp（阴影卡通化）
-**新建文件**：`Assets/Shader/RendererFeature/ShadowRampFeature.cs`  
-**优先级**：★★★☆☆  
-**工作量**：~2小时  
+### Task 2.3 — 晶体生长 VAT ⭐⭐⭐⭐
 
-**为什么需要**  
-Unity 默认阴影是软阴影（物理正确），但 NPR 要求投影阴影也有卡通感——  
-莱莎里地面上的阴影是硬边色块，不是渐变阴影。
+**为什么做**  
+你现有的 Crystal Shader 已经有折射 + 色散 + 内部辉光 + 脉冲发光，视觉效果相当完整。但它现在只是一个**静态宝石**——加上 VAT 生长动画之后，就变成了"炼金合成完成时，产物从无到有逐渐生长出来"的完整演示，技术链路价值大幅提升。
 
-**具体要做**
+**Houdini 端**
+- [ ] 方案 A（推荐）：**VDB Combine** 生长。建若干晶体柱的 SDF，用时间驱动逐步合并 → 等值面提取 → 每帧输出不同形状的 Mesh
+- [ ] 方案 B：**L-System** 长出树枝状晶簇，控制每帧的 L-System 迭代步数
+- [ ] 注意：VAT 模式选 **Rigid**（每顶点存位置 + 旋转），顶点数在整个动画序列里必须固定
+- [ ] 帧数约 48~60 帧（2秒），生长完毕后可静止几帧再循环
 
-- [ ] 通过 Custom Shadow Sampling，把接收阴影时的 ShadowAtten 值过一遍 Ramp 曲线
-- [ ] 或者更简单方式：在 CelShader 里的 `GetShadowAttenuation()` 返回值上做 `step(0.5, atten)` 硬化
-- [ ] 暴露参数：`ShadowRampTex`（可用同一张 RampMap）
+**Unity 端**
+- [ ] 新建 `VAT_CrystalGrowth.shadergraph`，基础 VAT 播放框架与 2.2 相同
+- [ ] 直接复用 `Mat_Crystal` 材质（不需要新写 Shader，VAT 只改变几何，表面材质不变）
+- [ ] 生长"前沿"加 Emission：用 VAT 速度通道（或 World Y 高度渐变）做一条发光带，模拟生长热感
+- [ ] C# 端：生长动画只播一次（OnCompleted 触发），不循环
 
 **验收标准**  
-地面上的阴影是硬边色块，与物体本身的卡通着色风格统一。
+炼金合成完成 → 晶体从地面慢慢生长出来 → 长成后 Crystal Shader 的折射/色散/脉冲全部可见。
 
 ---
 
-### Task 0.3 — Post-Processing 完整配置
-**文件**：`Assets/Settings/SampleSceneProfile.asset`  
-**优先级**：★★★★☆  
-**工作量**：~1小时  
+### Task 2.5 — 蒸汽 / 烟雾 VAT ⭐⭐⭐⭐
 
-- [ ] **Bloom**：Threshold 0.8，Intensity 0.4（只有 Emission > 1 的物体发光）
-- [ ] **Color Grading**：
-  - Lift（阴影）→ 偏蓝紫 `(0.95, 0.95, 1.05)`
-  - Gamma（中间调）→ 偏暖 `(1.0, 0.98, 0.95)`
-  - Gain（高光）→ 偏金黄 `(1.05, 1.02, 0.95)`
-  - Saturation → +15（卡通风格需要高饱和）
-- [ ] **Vignette**：Intensity 0.3，深棕色（烘托室内感）
-- [ ] **（可选）Chromatic Aberration**：轻微色散，强化玻璃和魔法感
+**为什么做**  
+当前展示场景"太干净"——有发光的材质和流动的符文，但缺少体积感的烟雾/蒸汽，显得像在展示孤立的材质球而不是一个**炼金工房**。蒸汽是把所有效果"粘合"成一个有氛围场景的关键。
 
----
+**Houdini 端**
+- [ ] 新建小范围 **Pyro Solver** 场景，从一个圆形 Volume Source 向上发射（模拟大锅液面蒸发）
+- [ ] 关键参数：低 Velocity（蒸汽缓慢上升）/ 低 Temperature（不是火焰）/ 高 Dissipation（快速消散）
+- [ ] Pyro 解算完成后：**VDB → Mesh**（SDF 等值面提取，`VDB Convert SOP`），得到每帧的 Mesh 序列
+- [ ] 导出 **Soft Body VAT**（顶点在原始位置附近形变，而非刚体旋转），帧数 48~60 帧做无缝循环
 
-## Phase 1：物体级 Shader 库
+**Unity 端**
+- [ ] 新建 `VAT_Steam.shadergraph`
+- [ ] 关键效果：
+  - `Alpha Fade`：从底部（不透明）到顶部（完全透明）的世界空间高度渐变
+  - `Rim 发白`：背光时蒸汽边缘出现白色散射感（`saturate(-dot(N,L))` 乘以浅蓝白色）
+  - `噪声扰动 UV`：FBM 噪声驱动 UV 偏移，让蒸汽边缘"沸腾"而不是硬切
+  - `顶部轻微 Emission`：蒸汽带魔法能量的感觉，颜色与药水颜色呼应
+- [ ] 渲染设置：半透明队列 / ZWrite Off / 双面渲染
 
-### Task 1.1 — Cel Shader 补全三要素
-**文件**：`Assets/Shader/AnimeFood_CelShaded.shader`  
-**优先级**：★★★★★  
-**工作量**：~2小时  
-
-当前只有 RampShadow + 伪SSS，缺少：
-
-- [ ] **Rim Light（边缘光）**
-  - `rimIntensity = pow(1.0 - saturate(dot(N, V)), _RimPower)`
-  - 莱莎配色：道具用暖橙 `(1.0, 0.55, 0.1)`，魔法物品用冷紫 `(0.6, 0.3, 1.0)`
-  - 参数：`_RimColor`, `_RimPower`, `_RimIntensity`
-
-- [ ] **Cel Specular（硬边高光）**
-  - `H = normalize(L + V)`，`spec = step(_SpecThreshold, pow(dot(N,H), _SpecShininess))`
-  - 参数：`_SpecColor`, `_SpecThreshold`, `_SpecShininess`
-
-- [ ] **Ramp 边界 smoothstep 控制**
-  - 参数：`_ShadowEdge`（控制明暗边界软硬，0=硬切，0.2=软过渡）
-
-**验收标准**：球体上能看到清晰高光点 + 橙色边缘光，阴影边界可调。
+**验收标准**  
+大锅上方有持续的半透明蒸汽缓慢上升消散，逆光时边缘有白色散射感，与下方沸腾液体（Task 2.1）搭配。
 
 ---
 
-### Task 1.2 — Cel Shader 描边改进（Clip-Space 膨胀）
-**文件**：`Assets/Shader/AnimeFood_CelShaded.shader`（Outline Pass）  
-**优先级**：★★★★☆  
-**工作量**：~1小时  
+### Task 2.1 — 大锅沸腾液体 VAT ⭐⭐⭐
 
-- [ ] 把 Object Space 法线膨胀改为 Clip Space 膨胀（解决透视变形）
-  ```hlsl
-  float4 posCS = TransformObjectToHClip(IN.positionOS.xyz);
-  float3 normalCS = normalize(TransformWorldToHClipDir(
-      TransformObjectToWorldNormal(IN.normalOS)));
-  posCS.xy += normalCS.xy * (_OutlineWidth * posCS.w * 0.01);
-  OUT.positionCS = posCS;
-  ```
-- [ ] 加入描边宽度受相机距离控制（远处描边变窄，保持视觉一致）
+**为什么排在 2.5 后面**  
+蒸汽的场景氛围价值更大；大锅沸腾虽然也重要，但可以先做更有视觉冲击的倾倒（2.2），大锅留后面做时正好配合 Phase 3 的场景重构。
 
-注：Task 0.1 完成后这个 Pass 可以关闭，但 0.1 是可选项，所以两者并行推进。
+**Houdini 端**
+- [ ] FLIP Fluid 模拟大锅内部沸腾，注意**边界条件**：需要一个碗形的 Collision Object（大锅形状）限制液体
+- [ ] 模拟参数：`Viscosity 0.3`（炼金液体偏粘稠）/ `Surface Tension 0.15` / 加若干上升气泡的 Volume Source
+- [ ] 导出 **Soft Body VAT**，帧数 60~80 帧，设好 Loop 点保证无缝循环
+- [ ] 额外导出：液面泡沫的单独粒子 VAT（Sprite 模式），与主体液面分开渲染
 
----
+**Unity 端**
+- [ ] 液体颜色参数化：暴露 `_LiquidColorCold`（蓝绿）/ `_LiquidColorHot`（橙红），用 `sin(Time * 0.5)` 缓慢过渡
+- [ ] 液面深度渐变：越深颜色越深（World Y 高度映射到颜色）
+- [ ] 液面 Emission：沸腾气泡周围加轻微发光（触发 Bloom）
+- [ ] C# 联动：ProcessorMachine 进入 Processing 状态时启动颜色变化动画
 
-### Task 1.3 — 药水瓶英雄 Shader（完整版）
-**文件**：`Assets/Shader/SG_PotionFlask.shadergraph`  
-**优先级**：★★★★★  
-**工作量**：~4小时  
-
-- [ ] **折射**：Scene Color Node + 法线扰动 UV
-- [ ] **菲涅尔厚度感**：边缘透明、中心饱和
-- [ ] **液面截断**：World Position Y 轴 step 截断，暴露 `_LiquidLevel` 参数
-- [ ] **Emission 发光**：液体区域输出 Emission（> 1 触发 Bloom）
-- [ ] **气泡滚动**：Panner Node 驱动气泡贴图在液体区域向上流动
-- [ ] **液体晃动**（bonus）：用 `sin(Time * _WaveSpeed)` 倾斜液面法线
+**验收标准**  
+大锅内液体持续沸腾，液面有气泡涌动，颜色随炼金进度从冷色→暖色渐变。
 
 ---
 
-### Task 1.4 — 晶体 / 宝石 Shader（新）
-**新建文件**：`Assets/Shader/SG_Crystal.shadergraph`  
-**优先级**：★★★★☆  
-**工作量**：~3小时  
+### 其余 VAT（后续按兴趣/时间选做）
 
-炼金原材料的核心视觉——矿石、宝石类材料需要专门的 Shader。
-
-- [x] **内部折射**：Matcap 采样（Matcap_Bluefield_Shard 默认），Screen 混合叠入
-- [x] **色散（Dispersion）**：RGB 沿 normalVS.xy 方向各自偏移，棱镜彩虹边缘
-- [x] **次表面透光**：`abs(dot(N, L))` + Fresnel 乘以透光量，双面透光
-- [x] **各向异性高光**：Kajiya-Kay，`_AnisoShininess=300`，高光更锐利集中
-- [x] **Emission 脉冲**：`sin(_Time.y * speed) * 0.5 + 0.5` 呼吸发光
-- **实现文件**：`Assets/Shader/Crystal_CelShaded.shader`（HLSL 透明 + 描边双 Pass）
-- **材质**：`Assets/Shader/Mat_Crystal.mat`（已关联 Matcap_Bluefield_Shard + 预设参数）
+| Task | 内容 | 优先级 | 工作量 | 备注 |
+|---|---|---|---|---|
+| 2.4 | 粉末颗粒 VAT（Grain Solver） | ★★★☆☆ | ~5h | 原材料投入大锅时的粉末落下 |
+| 2.6 | 炼金爆炸特效（RBD+FLIP） | ★★★☆☆ | ~8h | 炼金失败特效，配合 Dissolve Shader |
+| 2.7 | 玻璃水滴流淌 | ★★★☆☆ | ~4h | 药水瓶外壁质感细节 |
+| 2.8 | 程序化管道网络（Houdini HDA） | ★★★☆☆ | ~3h | Curve + Sweep SOP，无需手动摆管道 |
+| 2.9 | 程序化晶石簇 | ★★★☆☆ | ~2h | 场景装饰，Voronoi Fracture + Clip |
+| 2.10 | 程序化藤蔓 | ★★☆☆☆ | ~3h | L-System / Vellum Wire，氛围装饰 |
 
 ---
 
-### Task 1.5 — 金属 Shader（炼金炉/大锅）（新）
-**新建文件**：`Assets/Shader/SG_AlchemyMetal.shadergraph`  
-**优先级**：★★★☆☆  
-**工作量**：~2小时  
+## Phase 3：场景氛围重构 🔲
 
-炼金大锅、管道接头、炉架等金属部件。
+> **前提**：Phase 2 至少完成 Task 2.2 + 2.5，场景有了倾倒流体和烟雾之后，才值得花时间重构氛围——否则重构之后还得再改。
 
-- [x] **各向异性高光**：Kajiya-Kay 简化模型，切线偏移 + step 硬边化，铸铁拉丝感
-- [x] **风格化金属反射**：Matcap 采样（normalVS.xy * 0.5 + 0.5），Screen 混合叠入
-- [x] **边缘磨损**：顶点色 R 通道驱动磨损 mask，lerp 深棕色叠在 albedo 上
-- [x] **受热发光**（炉子专用）：World Y 轴梯度，pow 集中底部，双色 lerp（橙红→暗红）
-- **实现文件**：`Assets/Shader/AlchemyMetal_CelShaded.shader`（HLSL，含详细注释）
-- **材质**：`Assets/Shader/Mat_AlchemyMetal.mat`（已关联 Shader + 预设参数）
-
----
-
-### Task 1.6 — 溶解 / 炼金反应 Shader（新）
-**新建文件**：`Assets/Shader/SG_Dissolve.shadergraph`  
-**优先级**：★★★★☆  
-**工作量**：~2小时  
-
-当原材料被放入炼金炉，播放炼金反应时的视觉特效 Shader。
-
-- [x] **Noise 溶解**：FBM 程序化噪声（3层梯度噪声叠加）+ `clip(noise - _DissolveAmount)`
-- [x] **发光溶解边**：`edgeFactor` 检测边界区域，Hot→Cool 双色 Emission 渐变
-- [x] **UV 扭曲**：独立噪声驱动热浪 UV 偏移，`× saturate(_DissolveAmount * 4)` 关联溶解进度
-- [x] **对外暴露 `_DissolveAmount`**：C# 调用 `mat.SetFloat("_DissolveAmount", v)`
-- [x] **ShadowCaster Pass**：同步 clip 逻辑，溶解后不残留阴影
-- **实现文件**：`Assets/Shader/Dissolve_Alchemy.shader`（含详细注释）
-- **材质**：`Assets/Shader/Mat_Dissolve.mat`
-
----
-
-### Task 1.7 — 魔法符文 / 传送带 Shader（扩展已有）
-**文件**：`Assets/Shader/SG_Conveyor.shadergraph`  
-**优先级**：★★★☆☆  
-**工作量**：~2小时  
-
-把工厂传送带改造成魔法符文阵（炼金工房的"物流系统"）。
-
-- [x] **符文图案**：支持贴图模式 + 程序化 Voronoi 边缘线双模式（无贴图时自动切换）
-- [x] **流动方向**：`_FlowDirection` 向量驱动 UV 偏移，可任意指定方向
-- [x] **发光脉冲**：`_PulseDepth` 控制呼吸幅度，0=常亮，1=完整呼吸
-- [x] **边缘魔法粒子**：Voronoi 细胞中心光点，每粒子独立相位闪烁，不依赖 Particle System
-- **实现文件**：`Assets/Shader/RuneConveyor_CelShaded.shader`
-
----
-
-### Task 1.8 — 环境材质组（石板/木材/布料）（新）
-**新建文件**：`Assets/Shader/SG_StoneFloor.shadergraph`, `SG_Wood.shadergraph`  
-**优先级**：★★★☆☆  
-**工作量**：~3小时  
-
-炼金工房的地面、墙壁、架子。
-
-- [x] **石板地面**：Triplanar Mapping（世界坐标三轴采样）+ 苔藓 mask（顶点色 G）+ 湿润高光
-- [x] **木材架子**：Detail Normal Map（木纹细节法线）+ 暖色冷暖分离阴影 + 木纹方向高光
-- [x] **布料材料袋**：双层各向异性（经线 Warp + 纬线 Weft 分别计算）+ Cel step 硬边
-- [x] 三个材质统一使用相同的 Rim Light / Shadow 风格
-- **实现文件**：`StoneFloor_CelShaded.shader` / `Wood_CelShaded.shader` / `Fabric_CelShaded.shader`
-
----
-
-### Task 1.9 — Matcap 集成（已有贴图利用起来）
-**资产**：`Assets/Matcaps AnimefanPostUP/`  
-**优先级**：★★★☆☆  
-**工作量**：~1小时  
-
-你已经有一套 AnimefanPostUP 的 Matcap 贴图但尚未充分利用。
-
-- [ ] 在晶体 Shader（1.4）和金属 Shader（1.5）里用 Matcap 采样做主反射
-- [ ] Matcap 采样方式：把视角空间法线的 XY 分量映射到 UV：`matcapUV = normalVS.xy * 0.5 + 0.5`
-- [ ] 测试哪些 Matcap 贴图适合哪类材质（光滑金属/磨砂/玻璃）
-
----
-
-## Phase 2：Houdini 流体效果（重点）
-
-> **VAT（Vertex Animation Texture）是你的核心技术亮点。**  
-> 以下每个效果在 Houdini 里生成 VAT，在 Unity 里用对应的 ShaderGraph 播放。  
-> 你已经建立了 `VAT_DynamicRemeshing.shadergraph` 的基础框架，可以在此基础上扩展。
-
----
-
-### Task 2.1 — 大锅沸腾液体 VAT（完善已有）
-**Houdini 文件**：扩展已有流体模拟  
-**Unity Shader**：`Assets/Shader/VAT_DynamicRemeshing.shadergraph`  
-**优先级**：★★★★★  
-**工作量**：Houdini ~2小时 + Unity ~2小时  
-
-- [ ] **Houdini**：FLIP Fluid 模拟大锅内沸腾，SOP 层导出 VAT（Rigid / Soft Body 模式）
-- [ ] **验证 VAT 播放**：VertexID → UV 采样 pos.exr / rot.exr，Time Node 驱动帧
-- [ ] **Unity Shader 加入**：
-  - 液面泡沫 mask（World Y 高度 + Noise）
-  - 液体颜色深度渐变（深处颜色深）
-  - 液面 Emission（炼金液体发光）
-  - 受热颜色变化（Time 驱动颜色从蓝→绿→橙，模拟炼金进度）
-
----
-
-### Task 2.2 — 液体倾倒 VAT（新）
-**Houdini 模拟**：FLIP Fluid 倾倒动画  
-**Unity Shader**：新建 `Assets/Shader/VAT_LiquidPour.shadergraph`  
-**优先级**：★★★★☆  
-**工作量**：Houdini ~3小时 + Unity ~2小时  
-
-炼金工房最标志性的动作——把药瓶里的液体倒进大锅里。
-
-- [ ] **Houdini**：
-  - 建一个倾斜的烧瓶 + 接收容器的场景
-  - FLIP Fluid 模拟倾倒过程（重力 + 表面张力）
-  - 导出 VAT，帧范围约 60~90 帧（约 2~3 秒动画）
-- [ ] **Unity Shader**：
-  - 液体本体：半透明 + 折射 + Emission
-  - 落点水花：额外的 VAT 粒子飞溅层（可以是第二个 VAT Shader）
-  - Loop 控制：C# 控制 `_CurrentFrame` 参数，炼金完成时触发
-
----
-
-### Task 2.3 — 晶体生长 VAT（新）
-**Houdini 模拟**：SOP Crystal Growth（L-System 或 SDF 增长）  
-**Unity Shader**：新建 `Assets/Shader/VAT_CrystalGrowth.shadergraph`  
-**优先级**：★★★★☆  
-**工作量**：Houdini ~3小时 + Unity ~1.5小时  
-
-炼金合成时，产物（晶体）从无到有逐渐"生长"出来。
-
-- [ ] **Houdini**：
-  - 用 SDF 融合（VDB Combine）或 L-System 模拟晶体逐步生长
-  - 每一帧是不同的几何体（Rigid VAT 模式，每顶点存位置和旋转）
-  - 也可以用 Point Deform SOP 做晶体裂开/生长动画
-- [ ] **Unity Shader**：
-  - VAT 基础播放（引用 Task 2.1 的 Shader 框架）
-  - 结合 Task 1.4 的晶体材质（折射 + 色散 + 发光）
-  - 生长前沿加 Emission 发光（生长"热"感）
-
----
-
-### Task 2.4 — 粉末 / 颗粒物 VAT（新）
-**Houdini 模拟**：Grain Solver（颗粒动力学）  
-**Unity Shader**：新建 `Assets/Shader/VAT_Granular.shadergraph`  
-**优先级**：★★★☆☆  
-**工作量**：Houdini ~3小时 + Unity ~1.5小时  
-
-炼金原材料（药粉、矿粉）倒入容器时的颗粒流动。
-
-- [ ] **Houdini**：
-  - Grain Solver 模拟粉末从瓶子倒入容器
-  - 每个颗粒是一个点，Point Instancer 生成小球面
-  - 导出 VAT（Sprite 模式，每个点存世界位置）
-- [ ] **Unity Shader**：
-  - 点状颗粒渲染（Billboard Quad 或 SDF 球体）
-  - 颗粒颜色随高度/速度变化
-  - 落地堆积时颗粒颜色变暗（模拟聚集阴影）
-
----
-
-### Task 2.5 — 蒸汽 / 烟雾 VAT（新）
-**Houdini 模拟**：Pyro Solver → VDB → Mesh  
-**Unity Shader**：新建 `Assets/Shader/VAT_Steam.shadergraph`  
-**优先级**：★★★★☆  
-**工作量**：Houdini ~4小时 + Unity ~2小时  
-
-大锅沸腾时从液面升起的蒸汽，炉火旁的热气。
-
-- [ ] **Houdini**：
-  - 小范围 Pyro 模拟（蒸汽，低速，低密度）
-  - VDB 转 Mesh（SDF 等值面提取）
-  - 导出 Soft Body VAT（顶点软变形）
-- [ ] **Unity Shader**：
-  - 半透明 + Alpha Fade（从底到顶逐渐消散）
-  - Rim 发白（背光蒸汽效果）
-  - 顶部 Emission 轻微（蒸汽带有魔法能量感）
-  - 噪声扰动 UV（让蒸汽边缘不规则）
-
----
-
-### Task 2.6 — 炼金爆炸特效 VAT（新）
-**Houdini 模拟**：RBD + FLIP 联合模拟  
-**Unity Shader**：新建 `Assets/Shader/VAT_AlchemyBurst.shadergraph`  
-**优先级**：★★★☆☆  
-**工作量**：Houdini ~4小时 + Unity ~2小时  
-
-炼金失败时的爆炸效果，或者炼金成功时的光爆。
-
-- [ ] **Houdini**：
-  - 小型 RBD 碎片爆炸 + 液体飞溅（FLIP）
-  - RBD 部分用 Rigid VAT 导出
-  - 液体飞溅部分用独立的 FLIP VAT 导出
-- [ ] **Unity Shader**：
-  - RBD 碎片：与碎片旋转同步 + 发光溶解（结合 Task 1.6 的 Dissolve Shader）
-  - 液体飞溅：折射 + 发光轨迹
-  - 爆炸中心：Bloom 过曝（Emission 极大值，触发强 Bloom）
-
----
-
-### Task 2.7 — 玻璃水滴流淌 VAT（新）
-**Houdini 模拟**：FLIP Fluid 薄膜 / 水滴  
-**Unity Shader**：新建 `Assets/Shader/VAT_Droplets.shadergraph`  
-**优先级**：★★★☆☆  
-**工作量**：Houdini ~2小时 + Unity ~1.5小时  
-
-药水瓶外壁和玻璃管道上的水滴流淌，增加细节质感。
-
-- [ ] **Houdini**：
-  - 在曲面上模拟水滴滑落（Grain Solver 或 Shelf 的 Droplets 工具）
-  - 导出 VAT（Sprite 点模式）
-- [ ] **Unity Shader**：
-  - 水滴本身半透明折射（微型药水瓶玻璃感）
-  - 流过区域留下湿润 trail（Normal Map 扰动 + 稍高高光）
-
----
-
-### Task 2.8 — 程序化管道网络（Houdini 建模）（新）
-**Houdini 文件**：新建程序化管道 HDA  
-**优先级**：★★★☆☆  
-**工作量**：Houdini ~3小时  
-
-用 Houdini 生成炼金工房里的玻璃管道网络，而不是手动摆管道。
-
-- [ ] 用 Curve SOP 定义管道路径
-- [ ] Sweep SOP 生成管道几何体（可配置内径/外径/弯头精度）
-- [ ] 导出到 Unity，应用 `SG_PipeGlass` Shader
-- [ ] 管道内部用 `SG_DynamicLiquid` 或 `VAT_LiquidPour` 显示流动液体
-
----
-
-### Task 2.9 — 程序化晶石簇（Houdini 建模）（新）
-**Houdini 文件**：新建晶石 HDA  
-**优先级**：★★★☆☆  
-**工作量**：Houdini ~2小时  
-
-作为场景装饰和原材料堆放的晶石簇，程序化生成不同形态。
-
-- [ ] 用 SOP 模拟晶体生长（Voronoi Fracture + Clip SOP）
-- [ ] 参数化控制：晶石数量、高度、粗细、角度随机范围
-- [ ] 导出多个变体，应用 Task 1.4 的晶体 Shader
-
----
-
-### Task 2.10 — 程序化藤蔓沿管道生长（Houdini 建模）（新）
-**Houdini 文件**：新建藤蔓 HDA  
-**优先级**：★★☆☆☆  
-**工作量**：Houdini ~3小时  
-
-让炼金工房有一种年代久远、自然生长的感觉，藤蔓爬在玻璃管道外面。
-
-- [ ] 用 L-System 或 Vellum Wire Solver 模拟藤蔓生长
-- [ ] 沿管道几何体表面延伸（用 UVs 作为生长参考）
-- [ ] 叶片用 Scatter SOP 分布，朝向法线方向
-- [ ] Unity 里用简单 Lit 材质（可加 Subsurface 透光感）
-
----
-
-## Phase 3：场景氛围重构
+**当前问题**  
+现有 ShowcaseScene 是一排材质球展台，适合作品集初版展示，但**不像一个场景**。要让截图更有代入感，需要一个有氛围的"炼金工房角落"——哪怕只有 4×4 格子大。
 
 ### Task 3.1 — 光照系统重构
-**优先级**：★★★★☆  
-**工作量**：~1.5小时  
+
+**为什么重要**  
+光照是氛围最直接的来源。现在是中性展示灯（一主一补），改成炼金工房专属光照之后所有材质的质感都会提升一个档次。
 
 ```
-主光（Directional）：暖黄  #FFD4A0   强度 1.2，角度 30° 侧光
-环境（Environment）：蓝紫  #3A2F5E   Ambient 0.3
-炉火点光（炼金炉） ：橙红  #FF6B35   Range 4，Intensity 3
-药水点光（药水瓶） ：魔法紫 #9B59B6  Range 2，Intensity 2
+主光（Directional） 暖黄  #FFD4A0   强度 1.2，从侧上方 35°
+环境（Ambient）     蓝紫  #3A2F5E   Ambient Intensity 0.3（Trilight 模式）
+炉火点光           橙红  #FF6B35   Range 4m，Intensity 3，放在大锅下方
+药水点光           魔法紫 #9B59B6  Range 2m，Intensity 2，放在烧瓶旁
 ```
 
-- [ ] 调整 Directional Light 颜色和角度
-- [ ] Environment Lighting 切换为 Gradient 模式，上方冷下方暖
-- [ ] 在 ProcessorMachine 附近放 Orange Point Light
-- [ ] 在 Spawner / 药水瓶附近放 Purple Point Light
-- [ ] 配置 Reflection Probe（供玻璃和金属材质使用）
+- [ ] 调整 Directional Light 颜色 + 角度
+- [ ] Environment Lighting 切换为 **Gradient 模式**（上方冷蓝 / 赤道中性 / 地面暖橙）
+- [ ] 在大锅下方放 Orange Point Light（模拟炉火）
+- [ ] 在药水瓶旁放 Purple Point Light（魔法光源，触发 Crystal/Glass 折射颜色变化）
+- [ ] 配置 **Reflection Probe**（供 AlchemyMetal 的 Matcap 和 Crystal 的折射使用，即使场景简单也要有）
+
+### Task 3.2 — 环境材质替换
+
+把 ShowcaseScene 里的中性背景换成炼金工房材质。
+
+- [ ] 地面换成 `StoneFloor` Shader（已有 Triplanar + 苔藓）
+- [ ] 背景墙换成 `Wood` Shader 覆盖的木质架子模型（Sketchfab CC0 即可）
+- [ ] 传送带换成 `RuneConveyor` 材质（已做，接上去就行）
+- [ ] 场景角落放程序化晶石簇（Task 2.9 完成后）
+- [ ] 整体后处理微调：Vignette 深棕色 / Saturation 稍微再拉高一点（炼金工房色调偏饱和）
 
 ---
 
-### Task 3.2 — 地面/环境材质替换
-**优先级**：★★★☆☆  
-**工作量**：~2小时  
+## Phase 4：英雄资产打磨 🔲
 
-- [ ] 地面换成 Task 1.8 的石板地面 Shader
-- [ ] 场景边界加入木质墙壁/架子模型
-- [ ] 程序化晶石簇（Task 2.9）放在场景角落作为装饰
-- [ ] 传送带换成 Task 1.7 的魔法符文传送带效果
+> **为什么重要**  
+> 当前展示物全是球体/立方体/程序化宝石。面试官看到会问：**"你的 Shader 在真实角色或道具模型上能正常工作吗？"**  
+> Phase 4 的目标就是用**真实 CC0 模型**配上你的材质，让作品集从"一排材质球"升级为"炼金工房道具展示"。
 
----
+### Task 4.1 — 核心道具模型组
 
-## Phase 4：英雄资产打磨
+找 Sketchfab CC0 模型（或 Blender 简单建），关键是**有 UV、有切线、法线合理**。
 
-### Task 4.1 — 炼金道具模型组
-**优先级**：★★★★☆  
-**工作量**：~4~6小时  
-
-| 道具 | 来源建议 | Shader |
-|---|---|---|
-| 蒸馏烧瓶 (Alembic) | Sketchfab CC0 或 Blender 建模 | SG_PotionFlask |
-| 炼金大锅 (Cauldron) | Sketchfab CC0 + 修改 | SG_AlchemyMetal + VAT |
-| 玻璃管道网络 | Houdini 程序化（Task 2.8） | SG_PipeGlass |
-| 原材料·宝石 | Houdini 晶石簇（Task 2.9） | SG_Crystal |
-| 原材料·粉末 | 简单几何体 | SG_Granular VAT |
-| 炼金传送带 | 现有 Conveyor 改造 | SG_Conveyor（符文版） |
-
----
-
-### Task 4.2 — C# 与 Shader 联动（炼金动画触发）
-**文件**：`Assets/Script/ProcessorMachine.cs`  
-**优先级**：★★★☆☆  
-**工作量**：~2小时  
-
-让视觉特效与游戏逻辑状态同步：
-
-- [ ] ProcessorMachine 进入 Processing 状态 → 触发大锅 VAT 加热（颜色变化）
-- [ ] ProcessorMachine 完成 → 触发 Dissolve Shader 动画（原料消失）
-- [ ] ProcessorMachine 完成 → 触发液体倾倒 VAT 动画
-- [ ] 产物生成 → 触发晶体生长 VAT 动画
-
-实现方式：`MaterialPropertyBlock` 设置 `_DissolveAmount` / `_CurrentFrame` 等 Shader 参数。
-
----
-
-## Phase 5：作品集收尾
-
-### Task 5.1 — 展示场景布置
-**优先级**：★★★★☆  
-**工作量**：~2小时  
-
-- [ ] 固定一个展示相机位置（不依赖格子系统交互）
-- [ ] 在 4×4 格子核心区摆满炼金道具，展示所有材质
-- [ ] 加 Timeline 动画：相机自动在几个机位切换，循环展示
-- [ ] 确保所有动态效果（VAT / 符文 / 发光）在展示相机下都可见
-
----
-
-### Task 5.2 — Showreel 录制清单
-**优先级**：★★★★★  
-
-每段约 10~15 秒，剪辑总时长 90~120 秒。
-
-| 片段编号 | 内容 | 展示的技术点 | 建议拍法 |
+| 道具 | 来源建议 | 挂的 Shader | 配合的 VAT |
 |---|---|---|---|
-| 01 | 药水瓶 360° 绕轨 | 折射 + 液面 + Bloom 发光 | 慢速绕轨，背景黑 |
-| 02 | 大锅沸腾液体 | VAT 流体 + 泡沫 + 颜色变化 | 俯视 45° 近景 |
-| 03 | 液体倾倒过程 | FLIP VAT 倾倒 + 飞溅 | 侧面跟拍 |
-| 04 | 晶体生长动画 | Crystal VAT + 晶体 Shader | 近景正面 |
-| 05 | 炼金爆炸/成功特效 | RBD VAT + Dissolve + Bloom | 广角 + 慢动作 |
-| 06 | 蒸汽 / 烟雾 | Pyro VAT + 半透明 Shader | 逆光拍（背光蒸汽通透） |
-| 07 | 玻璃管道流体 | PipeGlass + DynamicLiquid | 管道特写侧视 |
-| 08 | 程序化晶石簇 | Houdini 建模 + Crystal Shader | 慢速推进 |
-| 09 | Cel Shading 对比 | 有/无 Rim Light / Specular 切换 | 静帧 + 参数动画 |
-| 10 | Screen-Space Outline 对比 | NPR 管线效果 | 分屏对比 |
-| 11 | 整体场景动态 | 光照氛围 + 所有效果同时运转 | 大景推进 |
+| **炼金大锅**（Cauldron） | Sketchfab CC0 搜 "cauldron" | AlchemyMetal（炉底发光） | 大锅沸腾（Task 2.1） |
+| **蒸馏烧瓶**（Alembic Flask） | Sketchfab CC0 / Blender 建 | SG_PotionFlask（折射+液面） | 液体倾倒（Task 2.2）触发 |
+| **宝石/矿石簇** | Houdini 晶石簇（Task 2.9） | Crystal（折射+色散+脉冲） | 晶体生长（Task 2.3） |
+| **玻璃管道网络** | Houdini 程序化（Task 2.8） | SG_PipeGlass | 管道流体（已有）|
 
----
+**接入步骤（以大锅为例）**：
+- [ ] 导入 FBX，检查 UV / 切线（AlchemyMetal 需要 Tangent 做各向异性）
+- [ ] 检查顶点色：磨损效果靠顶点色 R 通道，导入后先刷白（=新鲜金属）
+- [ ] 在 Blender 里给凹角 / 边缘刷黑色顶点色（=磨损）
+- [ ] 调整 `_HeatYBottom` / `_HeatYTop` 到模型实际的 World Y 范围
+- [ ] 放到 ShowcaseScene 替换原来的程序化圆柱
 
-### Task 5.3 — 技术文档整理
-**优先级**：★★★☆☆  
+### Task 4.2 — 药水瓶完整 Shader（`SG_PotionFlask`）
 
-- [ ] 每个 Shader 写一份 1 页的技术说明（思路 + 参数 + 关键节点截图）
-- [ ] ShaderGraph 截图（展示节点连接逻辑）
-- [ ] Houdini 工程截图（展示 SOP 网络）
-- [ ] 整理到 Notion / ArtStation / 个人网站
+配合真实烧瓶模型，把之前留着的 ShaderGraph 补完。
 
----
+**为什么没在 Phase 1 做**：没有真实瓶子模型时做这个意义不大，现在有了模型一起做。
 
-## 完整任务总览
+- [ ] **折射**：`Scene Color Node` + 法线扰动 UV（已有框架，复用 Crystal 的思路）
+- [ ] **液面截断**：World Position Y 轴做 `step`，暴露 `_LiquidLevel`（0~1），C# 可驱动"液体减少"
+- [ ] **菲涅尔**：边缘透明（像玻璃）/ 中心半透明（看到里面液体）
+- [ ] **Emission**：液体区域输出 Emission > 1 触发 Bloom
+- [ ] **气泡滚动**：`Panner Node` 驱动气泡贴图在液体区域向上流动（可以找一张气泡贴图或程序化生成）
+- [ ] 参数化液体颜色：暴露 `_LiquidColor`，不同药水换颜色
 
-| Phase | 任务 | 优先级 | 技术类别 | 预估工时 |
-|---|---|---|---|---|
-| 0.1 | Screen-Space Outline Renderer Feature | ★★★★★ | 管线/C# | 2~3h |
-| 0.2 | Shadow Ramp 卡通化 | ★★★☆☆ | 管线/Shader | 2h |
-| 0.3 | Post-Processing 完整配置 | ★★★★☆ | 后处理 | 1h |
-| 1.1 | Cel Shader 补全 Rim + Specular | ★★★★★ | HLSL | 2h |
-| 1.2 | Outline Clip-Space 改进 | ★★★★☆ | HLSL | 1h |
-| 1.3 | 药水瓶 Shader 完整版 | ★★★★★ | ShaderGraph | 4h |
-| 1.4 | 晶体/宝石 Shader | ★★★★☆ | ShaderGraph | 3h |
-| 1.5 | 金属 Shader（炼金炉） | ★★★☆☆ | ShaderGraph | 2h |
-| 1.6 | 溶解/炼金反应 Shader | ★★★★☆ | ShaderGraph | 2h |
-| 1.7 | 魔法符文传送带 Shader | ★★★☆☆ | ShaderGraph | 2h |
-| 1.8 | 环境材质组（石板/木材/布料） | ★★★☆☆ | ShaderGraph | 3h |
-| 1.9 | Matcap 集成 | ★★★☆☆ | ShaderGraph | 1h |
-| 2.1 | 大锅沸腾 VAT（完善） | ★★★★★ | Houdini+SG | 4h |
-| 2.2 | 液体倾倒 VAT | ★★★★☆ | Houdini+SG | 5h |
-| 2.3 | 晶体生长 VAT | ★★★★☆ | Houdini+SG | 4.5h |
-| 2.4 | 粉末颗粒 VAT | ★★★☆☆ | Houdini+SG | 4.5h |
-| 2.5 | 蒸汽/烟雾 VAT | ★★★★☆ | Houdini+SG | 6h |
-| 2.6 | 炼金爆炸特效 VAT | ★★★☆☆ | Houdini+SG | 6h |
-| 2.7 | 玻璃水滴流淌 VAT | ★★★☆☆ | Houdini+SG | 3.5h |
-| 2.8 | 程序化管道网络 | ★★★☆☆ | Houdini建模 | 3h |
-| 2.9 | 程序化晶石簇 | ★★★☆☆ | Houdini建模 | 2h |
-| 2.10 | 程序化藤蔓 | ★★☆☆☆ | Houdini建模 | 3h |
-| 3.1 | 光照系统重构 | ★★★★☆ | 场景 | 1.5h |
-| 3.2 | 地面/环境材质替换 | ★★★☆☆ | 场景 | 2h |
-| 4.1 | 炼金道具模型组 | ★★★★☆ | 建模/整合 | 6h |
-| 4.2 | C# 与 Shader 联动 | ★★★☆☆ | C# | 2h |
-| 5.1 | 展示场景布置 | ★★★★☆ | 场景 | 2h |
-| 5.2 | Showreel 录制 | ★★★★★ | 后期 | 4h |
-| 5.3 | 技术文档整理 | ★★★☆☆ | 文档 | 3h |
+### Task 4.3 — C# 与 Shader 联动（炼金动画序列）
 
-**总预估工时：约 90~100 小时**
-
----
-
-## 推荐开始顺序（按依赖和回报排列）
+把上面做好的 VAT 和 Shader 用 C# 串成一个有时序的炼金动画，演示**TA 写工具/驱动 Shader 的能力**。
 
 ```
-第1步  Task 0.3  Post-Processing 配置     ← 30分钟，整体氛围立刻改变
-第2步  Task 1.1  Cel Shader 补全          ← 核心 NPR 技术，基础中的基础
-第3步  Task 3.1  光照重构                 ← 氛围建立，后续截图都好看
-第4步  Task 1.3  药水瓶 Shader 完整版     ← 作品集最核心展示资产
-第5步  Task 2.1  大锅 VAT 完善            ← 技术亮点，有 Houdini 基础
-第6步  Task 1.4  晶体 Shader              ← 配合 VAT 晶体生长效果
-第7步  Task 2.2  液体倾倒 VAT             ← 最好看的单个 Houdini 效果
-第8步  Task 0.1  Screen-Space Outline     ← 管线级提升，视觉质感跨级
-第9步  Task 2.5  蒸汽 VAT                 ← 场景氛围关键
-第10步 Task 2.3  晶体生长 VAT             ← 与炼金逻辑直接联动
-第11步 剩余任务（按兴趣排列）
+放入原料
+  → 原料播放 Dissolve 溶解消失（_DissolveAmount 0→1）
+  → 大锅开始沸腾 VAT + 颜色从冷→热
+  → 蒸汽 VAT 启动
+  → 播放液体倾倒 VAT（如果有烧瓶）
+  → 产物：晶体生长 VAT 从中心向上长出
+  → 晶体 Crystal Shader 脉冲 Emission 加强
+```
+
+实现方式：
+- [ ] 写 `AlchemySequencer.cs`，用 `Coroutine` 按时序调用各 Shader 参数
+- [ ] 统一用 `MaterialPropertyBlock`（不实例化材质，对 GC 友好，这是面试考点）
+- [ ] 在面板里加一个"触发炼金"按钮，方便录制演示
+
+---
+
+## Phase 5：作品集收尾（持续迭代）
+
+### ✅ 已完成（初版）
+- [x] Editor 一键生成展示场景（`ShowcaseSceneBuilder.cs`）
+- [x] 运行时：Turntable / DissolveLoop / FlyCamera / 分页参数面板（四Tab）
+- [x] GitHub README（10 张 GIF，中文作品集叙述）
+- [x] VAT 接入展示场景，build 修复（Vertex Compression / VATBoundsExpander）
+
+### 🔲 随 Phase 2/3/4 进度更新
+
+- [ ] 每完成一个 VAT，补录 GIF 更新 README（液体倾倒 / 晶体生长 / 蒸汽）
+- [ ] Phase 4 英雄资产完成后，替换 ShowcaseScene 展示台上的程序化网格为真实模型
+- [ ] 完成 Task 4.3 炼金序列后，录一段"完整炼金流程演示"视频（而不只是材质静态展示）
+- [ ] 整理到 Notion / ArtStation：每个 Shader 一张 ShaderGraph 截图 + 一张 Houdini SOP 截图 + 2~3 句技术说明
+- [ ] （可选）剪辑 60~90 秒 Showreel：overview → crystal → metal → vat倾倒 → 晶体生长 → 蒸汽 → dissolve → rune → outline对比
+
+---
+
+## 下一步行动顺序
+
+```
+第 1 步  Task 2.2  液体倾倒 VAT
+         → 从 Houdini 开始，建烧瓶+容器场景，FLIP 模拟，导出 VAT
+         → Unity 端新建 VAT_LiquidPour.shadergraph，接入材质
+         → 录 GIF 更新 README
+
+第 2 步  Task 2.3  晶体生长 VAT
+         → Houdini VDB Combine 方案，Rigid VAT 导出
+         → Unity 端复用 Crystal 材质，加生长前沿 Emission
+         → 录 GIF 更新 README
+
+第 3 步  Task 2.5  蒸汽/烟雾 VAT
+         → Houdini Pyro → VDB → Mesh，Soft Body VAT
+         → Unity 半透明 + Alpha Fade + 噪声边缘
+         → 录 GIF 更新 README
+
+第 4 步  Task 4.1  找/做英雄模型（大锅 + 烧瓶）
+         → Sketchfab CC0，或 Blender 简单建
+         → 挂上 AlchemyMetal / PotionFlask 材质
+
+第 5 步  Task 2.1  大锅沸腾 VAT
+         → 有了大锅模型后做这个才有用，和 Phase 4 合并进行
+
+第 6 步  Task 4.2  SG_PotionFlask 补完
+         → 有了烧瓶模型后做
+
+第 7 步  Task 4.3  AlchemySequencer（炼金动画序列）
+         → 把以上所有效果串成一个完整演示链路
+
+第 8 步  Phase 3   场景氛围重构
+         → 光照 + 环境材质替换 + 整体调色微调
+         → 重拍 overview GIF
+
+第 9 步  Phase 5   作品集更新收尾
 ```
 
 ---
 
-## 快速参考：莱莎渲染关键参数
+## 技术深度提升建议（应对面试追问）
+
+**近期（配合 Phase 2）**
+- 弄清 **FLIP 的关键参数**（Surface Tension / Viscosity / XPBD）：Houdini 里的数值和真实物理的映射关系，面试会问
+- 理解 **VAT 三种模式**（Rigid / Soft / Sprite）的适用场景和数据结构差异
+
+**中期（配合 Phase 3/4）**
+- **PBR 原理**（能量守恒 / Cook-Torrance BRDF）：不是要你改成写实，而是要能解释"NPR 是如何有意违反 PBR 的，以及这样做的取舍"——面试必问
+- **URP 渲染顺序**（DrawCall 顺序 / RenderPass 生命周期 / 半透明排序）：你已经在用 RendererFeature，往下一层就是这个
+
+**长期**
+- **Houdini PDG**（任务图 / 批量自动化）：大厂 TA 的 Houdini 工作很大一部分是管线自动化，不只是做效果
+- **GPU Instancing / DrawMeshInstanced**：粒子/晶石簇等大量重复物体的优化方式
+
+**参考资料**
+- GDC Vault（免费）搜 "NPR" / "stylized rendering" / "vertex animation texture"
+- 米哈游 / 鹰角 / 叠纸的技术博客和 SIGGRAPH/GDC 分享（和你的方向直接对口）
+- Houdini FLIP 官方教程 + SideFX Labs VAT 文档
+
+---
+
+## 快速参考：关键参数 & 踩坑记录
 
 ```
+【莱莎渲染参数】
 Ramp Shadow    — 两段式，边界 smoothstep 宽度 0.05~0.1
 Rim Light      — Power 2.5~4，暖橙 #FF8C42 / 魔法紫 #9B59B6
 Cel Specular   — Shininess 60~120，step 硬切（无平滑过渡）
-Outline        — Clip Space 膨胀，视觉宽度 0.5~1.5px 恒定
+Outline(背面)  — Clip Space 膨胀，视觉宽度 0.5~1.5px 恒定
 Bloom          — Threshold 0.8，Emission > 1 才发光
 Color Grading  — 阴影蓝紫 / 中调暖 / 高光金黄，Saturation +15
-VAT 帧率       — 通常 24fps，Houdini 导出时设置好帧数范围
 晶体色散       — RGB 偏移量约 0.005~0.015（太大会失真）
+
+【VAT 踩坑】
+Vertex Compression  — 打包时关闭（=0），否则 UV 查表数据被量化炸开
+pos/rot 贴图        — EXR 不压缩 + 关 sRGB + 关 Mip + 不要用 Point 以外的过滤
+lookup 贴图         — Point 过滤，否则查到相邻顶点数据
+视锥剔除           — VAT 网格包围盒常被导出器放大，挂 VATBoundsExpander.cs
+mf.mesh vs sharedMesh — build 里 mesh 不可读时 mf.mesh 克隆出乱顶点，改用 sharedMesh
+
+【URP Build 踩坑】
+Hidden/ Shader      — 仅 Shader.Find 引用会被 build 剔除，加入 Always Included Shaders
+DepthNormals Pass   — 队列 >2500 的 Shader 不进预通道，全局屏幕空间描边看不见它
 ```

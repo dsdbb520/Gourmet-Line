@@ -27,11 +27,21 @@ Material:
         m_Texture: {fileID: 2800000, guid: 7aee7f9673eaeaf43b159b19c6911f00, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: 9c27c7f706cf3264a9e03d87d54d2865, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RoughnessMap:
+        m_Texture: {fileID: 2800000, guid: f667eaed5c776fc4b82cbb4eb1f66311, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _NormalStrength: 1
     - _OutlineWidth: 1.5
     - _RimIntensity: 0.8
     - _RimPower: 2.5
+    - _RoughnessStrength: 1
     - _ShadowEdge: 0.15
     - _ShadowRampThreshold: 0.5
     - _WarpIntensity: 0.3

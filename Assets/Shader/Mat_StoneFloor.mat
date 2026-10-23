@@ -38,16 +38,16 @@ Material:
     m_Ints: []
     m_Floats:
     - _BlendSharpness: 4
-    - _NormalStrength: 1
+    - _NormalStrength: 2
     - _OutlineWidth: 1.5
     - _RimIntensity: 0.5
     - _RimPower: 4
     - _ShadowEdge: 0.08
     - _ShadowRampThreshold: 0.637
     - _Tiling: 1.6
-    - _WetIntensity: 0.1
+    - _WetIntensity: 0.35
     - _WetShininess: 80
-    - _WetThreshold: 0.78
+    - _WetThreshold: 0.6
     m_Colors:
     - _MossColor: {r: 0.21999997, g: 0.34999996, b: 0.14999998, a: 1}
     - _OutlineColor: {r: 0.079999976, g: 0.079999976, b: 0.059999965, a: 1}

@@ -31,8 +31,20 @@ Material:
         m_Texture: {fileID: 2800000, guid: 00e38ddd30e1d9d47b7c7e5c48257a06, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _MetallicMap:
+        m_Texture: {fileID: 2800000, guid: 49054066f1111f542977a8136ae2879e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: cd40f6e18055a0d42b4072b8af1193f4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _RampMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 8b984516154a1c24da995c0a6a23598b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RoughnessMap:
+        m_Texture: {fileID: 2800000, guid: 6961d43e02aa5ba46b47890dcc0dd7e8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -42,17 +54,20 @@ Material:
     - _AnisoShift: -0.08
     - _AnisoShininess: 307
     - _AnisoThreshold: 0.744
-    - _HeatFalloff: 2.84
-    - _HeatIntensity: 4.58
-    - _HeatYBottom: 3.54
-    - _HeatYTop: 4.1
-    - _MatcapIntensity: 1
+    - _HeatFalloff: 3.64
+    - _HeatIntensity: 3.06
+    - _HeatYBottom: 1.7
+    - _HeatYTop: 2
+    - _MatcapIntensity: 0.8
+    - _MetallicStrength: 1
+    - _NormalStrength: 1
     - _OutlineWidth: 1.5
     - _QueueControl: 0
     - _QueueOffset: 0
     - _RimIntensity: 0.7
     - _RimPower: 3
-    - _ShadowEdge: 0.05
+    - _RoughnessStrength: 1
+    - _ShadowEdge: 0.125
     - _ShadowRampThreshold: 0.5
     - _WornIntensity: 0.8
     m_Colors:

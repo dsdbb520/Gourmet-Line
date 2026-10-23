@@ -31,18 +31,8 @@ Shader "GourmetLine/AnimeFood_CelShaded"
 
     SubShader
     {
-        // Queue=Geometry：标准不透明队列。
-        // 原先用 2501(越过透明阈值 2500)是为了让 SRPDefaultUnlit 描边 Pass 的深度测试更稳；
-        // 改回 Geometry 的两个收益更关键：
-        //   1) 进入 URP 的 DepthNormals 预通道(只渲染 ≤2500)，让下方 DepthNormals Pass 生效，
-        //      从而能被全局 ScreenSpaceOutline 描边（描出每条棱/折角）；
-        //   2) SRPDefaultUnlit 本就在不透明渲染之后执行，背面描边深度依旧正确。
         Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
 
-        // ── DepthNormals Pass ───────────────────────────────────────────────
-        // 把本物体的世界空间法线写入 URP 的 _CameraNormalsTexture。
-        // 全局 ScreenSpaceOutline 靠比较相邻像素的法线差检测边缘，只有写了这张
-        // 法线图的物体才会被全局描边描到。URP Lit 自带此 Pass，自定义 Shader 需补。
         Pass
         {
             Name "DepthNormals"
@@ -68,7 +58,6 @@ Shader "GourmetLine/AnimeFood_CelShaded"
 
             half4 DepthNormalsFrag(DNVaryings IN) : SV_Target
             {
-                // URP 12+ 的 _CameraNormalsTexture 存世界空间法线
                 return half4(normalize(IN.normalWS), 0.0);
             }
             ENDHLSL
@@ -79,7 +68,7 @@ Shader "GourmetLine/AnimeFood_CelShaded"
         {
             Name "ForwardLit"
             Tags { "LightMode"="UniversalForward" }
-            ZWrite On  // 显式声明写深度，防止 URP 因队列 >2500 而自动关闭 ZWrite
+            ZWrite On
             
             HLSLPROGRAM
             #pragma vertex vert
@@ -111,41 +100,40 @@ Shader "GourmetLine/AnimeFood_CelShaded"
 
             Varyings vert(Attributes IN) {
                 Varyings OUT;
-                OUT.positionWS  = TransformObjectToWorld(IN.positionOS.xyz);
-                OUT.positionCS  = TransformWorldToHClip(OUT.positionWS);
+                OUT.positionWS  = TransformObjectToWorld(IN.positionOS.xyz); //M矩阵
+                OUT.positionCS  = TransformWorldToHClip(OUT.positionWS);     //VP矩阵
                 OUT.normalWS    = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.uv          = IN.uv;
-                OUT.shadowCoord = TransformWorldToShadowCoord(OUT.positionWS);
+                OUT.shadowCoord = TransformWorldToShadowCoord(OUT.positionWS);  // 世界空间位置变换到主光源的阴影贴图空间，用于后续采样阴影贴图
                 return OUT;
             }
 
             half4 frag(Varyings IN) : SV_Target {
-                half4 albedo    = tex2D(_BaseMap, IN.uv) * _BaseColor;
-                Light mainLight = GetMainLight(IN.shadowCoord);
-                float3 L        = normalize(mainLight.direction);
-                float3 N        = normalize(IN.normalWS);
-                float3 V        = normalize(_WorldSpaceCameraPos - IN.positionWS);
+                half4 albedo    = tex2D(_BaseMap, IN.uv) * _BaseColor;  // 基础颜色（纹理采样乘以颜色属性）
+                Light mainLight = GetMainLight(IN.shadowCoord);    // 获取主光源信息（方向、颜色、阴影衰减等）
+                float3 L        = normalize(mainLight.direction);     // 光照方向（从表面指向光源）
+                float3 N        = normalize(IN.normalWS);      // 法线
+                float3 V        = normalize(_WorldSpaceCameraPos - IN.positionWS);  // 视线方向（从表面指向相机）
 
-                // 1. Ramp Shadow — 自身光照 + 接收其他物体投射的阴影
-                float NdotL     = dot(N, L);
-                // 接收投射阴影：step 硬边化，保持卡通色块感
+                float NdotL     = dot(N, L);   // Lambert光照模型
+                // 接收投射阴影：step硬边化，保持卡通色块感
                 float shadowAtten = step(_ShadowRampThreshold, mainLight.shadowAttenuation);
-                // 自身 NdotL 与投射阴影合并后采样 Ramp
+                // 采样Ramp
                 float litValue = NdotL * shadowAtten;
-                float rampUV = smoothstep(0.5 - _ShadowEdge, 0.5 + _ShadowEdge, litValue * 0.5 + 0.5);
+                float rampUV = smoothstep(0.5 - _ShadowEdge, 0.5 + _ShadowEdge, litValue * 0.5 + 0.5);  //Half-Lambert
                 half3 shadowColor = tex2D(_RampMap, float2(rampUV, 0.5)).rgb;
 
-                // 2. Pseudo-SSS
+                // Pseudo-SSS 伪次表面散射
                 float backlight = max(0, dot(V, -L));
                 float sssIntensity = pow(backlight, _SSSPower) * saturate(-NdotL + 0.5);
                 half3 sss = _SSSColor.rgb * sssIntensity;
 
-                // 3. Rim Light — 边缘光
-                float rimIntensity = pow(1.0 - saturate(dot(N, V)), _RimPower) * _RimIntensity;
+                // Rim Light 边缘光
+                float rimIntensity = pow(1.0 - saturate(dot(N, V)), _RimPower) * _RimIntensity; //视线与法线夹角越大（越接近边缘），rimIntensity 越强
                 half3 rim = _RimColor.rgb * rimIntensity;
 
-                // 4. Cel Specular — 硬边高光
-                float3 H = normalize(L + V);
+                // Cel Specular 硬边高光
+                float3 H = normalize(L + V);  // 半程向量（光照方向与视线方向的平均方向）
                 float NdotH = max(0, dot(N, H));
                 float spec = step(_SpecThreshold, pow(NdotH, _SpecShininess));
                 half3 specular = _CelSpecColor.rgb * spec;
@@ -157,8 +145,6 @@ Shader "GourmetLine/AnimeFood_CelShaded"
         }
 
         // Pass 2: 描边 (Clip Space 法线膨胀)
-        // 在队列 2501（透明阈值之后），SRPDefaultUnlit 能正确访问不透明深度缓冲，
-        // 背景物体的描边无法再穿透到该物体的像素上。
         Pass
         {
             Name "Outline"
@@ -185,25 +171,14 @@ Shader "GourmetLine/AnimeFood_CelShaded"
             Varyings vert(Attributes IN) {
                 Varyings OUT;
 
-                // ── Step 1：把顶点变换到 Clip Space（齐次裁剪空间）──────────────
-                // 此时还没做透视除法（posCS.xyz / posCS.w）。
-                // posCS.w ≈ 顶点到相机的距离（线性深度），越远 w 越大。
+                // 把顶点变换到 Clip Space
                 float4 posCS = TransformObjectToHClip(IN.positionOS.xyz);
 
-                // ── Step 2：把法线变换到 View Space，取 XY 作为屏幕偏移方向 ────
-                // 注意：这里用 View Space 而非直接用 Clip Space。
-                // View Space 的 XY 轴就是相机的右/上方向，
-                // 与屏幕 XY 对齐（投影矩阵几乎只做缩放），所以 normalVS.xy 就是
-                // "在屏幕上这条法线指向哪个方向"，不会被透视拉歪。
-                // （TransformWorldToHClipDir 在 URP 14 中不是标准函数，故改用 ViewDir）
+                // 把法线变换到 View Space，取 XY 作为屏幕偏移方向
                 float3 normalWS = TransformObjectToWorldNormal(IN.normalOS);
                 float3 normalVS = normalize(TransformWorldToViewDir(normalWS));
 
-                // ── Step 3：在 Clip Space 做像素精确的偏移 ──────────────────────
-                // _ScreenParams.y = 屏幕高度（像素）
-                // 2.0 / _ScreenParams.y = 一个像素对应多少 NDC 单位
-                // 乘以 posCS.w：透视除法（÷w）会把这个偏移缩回去，
-                // 最终 NDC 偏移 = _OutlineWidth × (2/屏高) = 与距离无关的像素宽度。
+                // 在 Clip Space 做像素精确的偏移
                 float pixelScale = 2.0 / _ScreenParams.y;
                 posCS.xy += normalVS.xy * (_OutlineWidth * posCS.w * pixelScale);
 

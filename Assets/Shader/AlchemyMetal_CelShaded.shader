@@ -1,6 +1,5 @@
 Shader "GourmetLine/AlchemyMetal_CelShaded"
 {
-    // Task 1.5 — 金属 Shader（炼金炉/大锅）
     // 四个核心功能：
     //   [A] 各向异性高光  — Kajiya-Kay 模型，铸铁拉丝感
     //   [B] Matcap 金属反射 — 视角空间法线采样，比 Reflection Probe 更可控
@@ -11,6 +10,14 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
     {
         _BaseMap("Base Texture", 2D) = "white" {}
         _BaseColor("Base Color", Color) = (0.72, 0.65, 0.52, 1)
+
+        [Header(Surface Maps)]
+        _NormalMap("Normal Map", 2D) = "bump" {}
+        _NormalStrength("Normal Strength", Range(0, 2)) = 1.0
+        _MetallicMap("Metallic Map", 2D) = "white" {}
+        _MetallicStrength("Metallic Influence", Range(0, 1)) = 1.0
+        _RoughnessMap("Roughness Map", 2D) = "black" {}
+        _RoughnessStrength("Roughness Influence", Range(0, 1)) = 1.0
 
         [Header(Matcap Reflection)]
         _MatcapTex("Matcap Texture", 2D) = "white" {}
@@ -56,12 +63,8 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
 
     SubShader
     {
-        // Queue=Geometry：标准不透明队列（原 2501 改回）。
-        // 改回的关键收益：进入 URP DepthNormals 预通道(≤2500)，使下方 DepthNormals Pass
-        // 生效，从而被全局 ScreenSpaceOutline 描边；SRPDefaultUnlit 描边仍在不透明后执行。
         Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
 
-        // ── DepthNormals Pass ───────────────────────────────────────────────
         // 把世界空间法线写入 _CameraNormalsTexture，供全局 ScreenSpaceOutline 检测边缘。
         Pass
         {
@@ -93,9 +96,7 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
             ENDHLSL
         }
 
-        // ══════════════════════════════════════════════
-        //  Pass 1: 主渲染 — 光照 + 四个金属效果
-        // ══════════════════════════════════════════════
+        // Pass 1:主渲染 光照 + 四个金属效果
         Pass
         {
             Name "ForwardLit"
@@ -113,25 +114,29 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
             struct Attributes {
                 float4 positionOS  : POSITION;
                 float3 normalOS    : NORMAL;
-                float4 tangentOS   : TANGENT;    // [A] 各向异性高光需要切线方向
+                float4 tangentOS   : TANGENT;    // 各向异性高光需要切线方向
                 float2 uv          : TEXCOORD0;
-                float4 vertexColor : COLOR;      // [C] 顶点色驱动磨损 mask
+                float4 vertexColor : COLOR;      // 顶点色驱动磨损mask
             };
 
             struct Varyings {
                 float4 positionCS  : SV_POSITION;
                 float3 positionWS  : TEXCOORD0;
                 float3 normalWS    : TEXCOORD1;
-                float3 tangentWS   : TEXCOORD2;  // [A]
+                float3 tangentWS   : TEXCOORD2;
                 float2 uv          : TEXCOORD3;
                 float4 shadowCoord : TEXCOORD4;
-                float3 normalVS    : TEXCOORD5;  // [B] Matcap UV
-                float4 vertexColor : TEXCOORD6;  // [C]
+                float3 normalVS    : TEXCOORD5;
+                float4 vertexColor : TEXCOORD6;
+                float3 bitangentWS : TEXCOORD7;
             };
 
             sampler2D _BaseMap;     float4 _BaseColor;
             sampler2D _MatcapTex;   float  _MatcapIntensity;
             sampler2D _RampMap;     float  _ShadowEdge;  float _ShadowRampThreshold;
+            sampler2D _NormalMap;    float _NormalStrength;
+            sampler2D _MetallicMap;  float _MetallicStrength;
+            sampler2D _RoughnessMap; float _RoughnessStrength;
 
             float4 _AnisoSpecColor; float _AnisoShininess;
             float  _AnisoShift;     float _AnisoThreshold;  float _AnisoIntensity;
@@ -151,9 +156,9 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
                 OUT.positionCS  = TransformWorldToHClip(OUT.positionWS);
                 OUT.normalWS    = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.tangentWS   = TransformObjectToWorldDir(IN.tangentOS.xyz);
+                OUT.bitangentWS = cross(OUT.normalWS, OUT.tangentWS) * IN.tangentOS.w;
                 OUT.uv          = IN.uv;
                 OUT.shadowCoord = TransformWorldToShadowCoord(OUT.positionWS);
-                // View Space 法线的 XY = 屏幕上法线方向 = Matcap UV 基础
                 OUT.normalVS    = normalize(TransformWorldToViewDir(OUT.normalWS));
                 OUT.vertexColor = IN.vertexColor;
                 return OUT;
@@ -164,26 +169,39 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
                 half4  albedo    = tex2D(_BaseMap, IN.uv) * _BaseColor;
                 Light  mainLight = GetMainLight(IN.shadowCoord);
                 float3 L = normalize(mainLight.direction);
-                float3 N = normalize(IN.normalWS);
-                float3 T = normalize(IN.tangentWS);
                 float3 V = normalize(_WorldSpaceCameraPos - IN.positionWS);
+
+                // 法线贴图 -> 世界空间
+                float3 T  = normalize(IN.tangentWS);
+                float3 B  = normalize(IN.bitangentWS);
+                float3 N0 = normalize(IN.normalWS);
+                float3 nTS = UnpackNormal(tex2D(_NormalMap, IN.uv));
+                nTS.xy *= _NormalStrength;                 // xy 控凹凸强度，0 退回平面
+                nTS = normalize(nTS);
+                float3 N = normalize(nTS.x * T + nTS.y * B + nTS.z * N0);
+
                 float3 H = normalize(L + V);
 
-                // ── Ramp Shadow ──────────────────────────────────────────────
-                float NdotL       = dot(N, L);
-                float shadowAtten = step(_ShadowRampThreshold, mainLight.shadowAttenuation);
-                float litValue    = NdotL * shadowAtten;
+                // 金属度 / 粗糙度
+                float metallic = lerp(1.0, tex2D(_MetallicMap, IN.uv).r, _MetallicStrength);
+                float gloss    = 1.0 - tex2D(_RoughnessMap, IN.uv).r * _RoughnessStrength;
+
+                // Ramp
+                float NdotL       = dot(N, L);    //Lambert
+                float shadowAtten = step(_ShadowRampThreshold, mainLight.shadowAttenuation);   // 阴影衰减硬边化
+                float litValue    = NdotL * shadowAtten;           
                 float rampUV      = smoothstep(0.5 - _ShadowEdge, 0.5 + _ShadowEdge,
-                                               litValue * 0.5 + 0.5);
+                                               litValue * 0.5 + 0.5);  //Half-Lambert
                 half3 shadowColor = tex2D(_RampMap, float2(rampUV, 0.5)).rgb;
 
-                // ── [B] Matcap 金属反射 ──────────────────────────────────────
+                // Matcap 金属反射
                 // 原理：把视角空间法线的 XY 映射到 [0,1] 作为 UV 采样 Matcap
-                // 好处：完全预烘焙的反射图，不依赖场景环境，卡通感强且稳定
-                float2 matcapUV = IN.normalVS.xy * 0.5 + 0.5;
-                half3  matcap   = tex2D(_MatcapTex, matcapUV).rgb * _MatcapIntensity;
+                // 用扰动后的法线重算视角空间法线 → 反射也体现凹凸细节；metallic 控反射强弱
+                float3 nVS      = normalize(TransformWorldToViewDir(N));
+                float2 matcapUV = nVS.xy * 0.5 + 0.5;
+                half3  matcap   = tex2D(_MatcapTex, matcapUV).rgb * _MatcapIntensity * metallic;
 
-                // ── [A] 各向异性高光 (Kajiya-Kay 简化) ──────────────────────
+                // 各向异性高光 (Kajiya-Kay 简化) 
                 // 物理原理：金属表面的微观拉丝结构沿切线方向排列
                 //   → 高光形状是垂直于切线方向的弧形光带，而非圆形
                 //
@@ -198,28 +216,22 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
                 // 当 T∥H 时，sin = 0 → 无高光  → 形成与切线方向平行的暗带
                 float TdotH     = dot(T_shifted, H);
                 float sinTH     = sqrt(max(0.0, 1.0 - TdotH * TdotH));
-                // step 硬边化：与卡通风格统一，不使用平滑高光
                 float anisoSpec = step(_AnisoThreshold, pow(sinTH, _AnisoShininess));
-                // 背光面不显示高光
                 anisoSpec      *= step(0.0, NdotL);
-                half3 anisoCel  = _AnisoSpecColor.rgb * anisoSpec * _AnisoIntensity;
+                half3 anisoCel  = _AnisoSpecColor.rgb * anisoSpec * _AnisoIntensity * gloss;
 
-                // ── Rim Light ────────────────────────────────────────────────
+                // Rim Light
                 float rimI = pow(1.0 - saturate(dot(N, V)), _RimPower) * _RimIntensity;
                 half3 rim  = _RimColor.rgb * rimI;
 
-                // ── [C] 边缘磨损 (Vertex Color AO) ──────────────────────────
-                // 美术在 DCC 软件（Blender / Maya）里：
-                //   → 新鲜金属面：刷白色顶点色（R = 1）
-                //   → 磨损边缘/接缝/凹角：刷黑色顶点色（R = 0）
-                // 这里把黑色区域叠上深棕/铁锈色，模拟金属磨损和 AO 暗角
+                // 边缘磨损 (Vertex Color AO)
+                // 美术在 DCC 软件里：顶点色 R 通道：白=崭新金属，黑=磨损凹角
                 float wearMask   = IN.vertexColor.r;
                 half3 wornTint   = lerp(_WornColor.rgb, half3(1, 1, 1), wearMask);
                 // lerp 控制磨损强度：_WornIntensity = 0 → 不磨损，1 → 完全磨损
                 half3 wornAlbedo = albedo.rgb * lerp(half3(1, 1, 1), wornTint, _WornIntensity);
 
-                // ── [D] 受热发光 (Heat Emission Gradient) ───────────────────
-                // 原理：炼金炉炉底被火持续加热，越靠下温度越高
+                // 受热发光
                 // _HeatYBottom / _HeatYTop：设置成炉子底部和顶部的 World Y 坐标
                 float worldY  = IN.positionWS.y;
                 float heatT   = 1.0 - saturate(
@@ -230,13 +242,11 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
                 half3 heatCol = lerp(_HeatColorWarm.rgb, _HeatColorHot.rgb, heatT);
                 half3 emission = heatCol * heatT * _HeatIntensity;
 
-                // ── 合成 ─────────────────────────────────────────────────────
                 // 基础金属色：带磨损的 albedo × Shadow Ramp × 主光颜色
                 half3 metalBase  = wornAlbedo * shadowColor * mainLight.color;
-                // Matcap 以 Screen 混合叠入（只增亮，不压暗，保留金属通透感）
-                //   Screen: out = 1 - (1-a)(1-b)
+                // Matcap 以 Screen 混合叠入
                 half3 withMatcap = 1.0 - (1.0 - metalBase) * (1.0 - matcap);
-                // 最终叠加各向异性高光、边缘光、受热发光（Emission 不受光照影响）
+                // 最终叠加各向异性高光、边缘光、受热发光
                 half3 finalColor = withMatcap + anisoCel + rim + emission;
 
                 return half4(finalColor, albedo.a);
@@ -244,9 +254,7 @@ Shader "GourmetLine/AlchemyMetal_CelShaded"
             ENDHLSL
         }
 
-        // ══════════════════════════════════════════════
         //  Pass 2: 描边 (Clip Space 法线膨胀)
-        // ══════════════════════════════════════════════
         Pass
         {
             Name "Outline"

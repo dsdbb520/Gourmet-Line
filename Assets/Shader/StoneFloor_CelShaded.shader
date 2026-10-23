@@ -1,11 +1,9 @@
 Shader "GourmetLine/StoneFloor_CelShaded"
 {
-    // Task 1.8 — 环境材质：石板地面
-    //
-    // 三个核心功能：
-    //   [A] Triplanar Mapping — 不依赖 UV，世界坐标采样，地面/墙壁无缝拼接
-    //   [B] 苔藓 mask        — 顶点色 G 通道驱动石头↔苔藓混合
-    //   [C] 湿润高光         — 无苔藓的裸石区域有轻微积水高光
+    // 环境材质：石板地面
+    //   不依赖 UV，世界坐标采样，地面/墙壁无缝拼接
+    //   顶点色 G 通道驱动石头↔苔藓混合
+    //   无苔藓的裸石区域有轻微积水高光
 
     Properties
     {
@@ -52,8 +50,6 @@ Shader "GourmetLine/StoneFloor_CelShaded"
     {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" "RenderPipeline"="UniversalPipeline" }
 
-        // ── DepthNormals Pass ───────────────────────────────────────────────
-        // 写世界空间法线到 _CameraNormalsTexture，供全局 ScreenSpaceOutline 检测边缘。
         Pass
         {
             Name "DepthNormals"
@@ -101,7 +97,7 @@ Shader "GourmetLine/StoneFloor_CelShaded"
             struct Attributes {
                 float4 positionOS  : POSITION;
                 float3 normalOS    : NORMAL;
-                float4 vertexColor : COLOR;   // [B] G 通道 = 苔藓 mask
+                float4 vertexColor : COLOR;   //G 通道 = 苔藓 mask
             };
 
             struct Varyings {
@@ -140,10 +136,9 @@ Shader "GourmetLine/StoneFloor_CelShaded"
                 float3 V = normalize(_WorldSpaceCameraPos - IN.positionWS);
                 float3 H = normalize(L + V);
 
-                // ── [A] Triplanar Mapping ────────────────────────────────────
+                // Triplanar Mapping
                 // 原理：从 X/Y/Z 三个方向分别把贴图投影到表面，按法线分量加权混合
                 // 好处：地面/墙壁不需要展 UV，贴图无缝拼接，不会有拉伸或接缝
-                //
                 // blendW：法线的绝对值经过 pow 锐化后归一化
                 //   pow 越大，三个投影的过渡区越窄（混合越硬）
                 float3 blendW = pow(abs(N), _BlendSharpness);
@@ -165,7 +160,7 @@ Shader "GourmetLine/StoneFloor_CelShaded"
                 half3 mossZ = tex2D(_MossAlbedo, uvZ).rgb * _MossColor.rgb;
                 half3 mossCol = mossX * blendW.x + mossY * blendW.y + mossZ * blendW.z;
 
-                // Triplanar 法线（Whiteout 混合，保持法线方向正确）
+                // Triplanar 法线
                 // 每个投影平面的法线切换到对应世界轴
                 float3 tnX = UnpackNormal(tex2D(_StoneNormal, uvX));
                 float3 tnY = UnpackNormal(tex2D(_StoneNormal, uvY));
@@ -177,29 +172,28 @@ Shader "GourmetLine/StoneFloor_CelShaded"
                     tnX.zyx * blendW.x + tnY.xzy * blendW.y + tnZ.xyz * blendW.z);
                 float3 Nf = normalize(lerp(N, triNormal, _NormalStrength));
 
-                // ── [B] 苔藓 mask ────────────────────────────────────────────
+                // 苔藓 mask
                 // 顶点色 G 通道：1=苔藓，0=裸石
                 float mossMask = IN.vertexColor.g;
                 half3 albedo   = lerp(stoneCol, mossCol, mossMask);
 
-                // ── 卡通阴影 ────────────────────────────────────────────────
-                float NdotL   = dot(Nf, L);
+                // 卡通阴影
+                float NdotL   = dot(Nf, L);            //Lambert
                 float litVal  = NdotL * mainLight.shadowAttenuation;
-                float ramp    = smoothstep(_ShadowRampThreshold - _ShadowEdge,
+                float ramp    = smoothstep(_ShadowRampThreshold - _ShadowEdge,     //Half-Lambert
                                            _ShadowRampThreshold + _ShadowEdge,
                                            litVal * 0.5 + 0.5);
                 half3 litBase = albedo * lerp(half3(0.3, 0.3, 0.3), half3(1,1,1), ramp)
                                 * mainLight.color;
 
-                // ── [C] 湿润高光 ────────────────────────────────────────────
+                // 湿润高光
                 // 苔藓吸水不反光，裸石表面积水有镜面感
-                // wetMask = 1 - mossMask：裸石区域才出现湿润高光
-                float NdotH   = saturate(dot(Nf, H));
+                float NdotH   = saturate(dot(Nf, H));     //Blinn-Phong
                 float wetSpec = step(_WetThreshold, pow(NdotH, _WetShininess));
                 wetSpec      *= step(0.0, NdotL) * (1.0 - mossMask);
                 half3 wetLight = _WetColor.rgb * wetSpec * _WetIntensity;
 
-                // ── Rim Light ───────────────────────────────────────────────
+                // Rim Light
                 float NdotV = saturate(dot(Nf, V));
                 float rimI  = pow(1.0 - NdotV, _RimPower) * _RimIntensity;
                 half3 rim   = _RimColor.rgb * rimI;

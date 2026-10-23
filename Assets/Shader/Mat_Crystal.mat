@@ -65,6 +65,6 @@ Material:
     - _GemSpecColor: {r: 1, g: 1, b: 1, a: 1}
     - _OutlineColor: {r: 0.15, g: 0.05, b: 0.3, a: 1}
     - _PulseColor: {r: 0.55, g: 0.25, b: 1, a: 1}
-    - _RimColor: {r: 0.5, g: 0.2, b: 1, a: 1}
-    - _TransColor: {r: 0.65, g: 0.3, b: 1, a: 1}
+    - _RimColor: {r: 1, g: 0.29313132, b: 0.19999999, a: 1}
+    - _TransColor: {r: 0.35827225, g: 1, b: 0.2980392, a: 1}
   m_BuildTextureStacks: []
