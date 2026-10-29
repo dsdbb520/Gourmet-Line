@@ -7,16 +7,16 @@ namespace GourmetLine.Showcase
 {
     /// <summary>
     /// 运行时参数面板（IMGUI/OnGUI，无需 Canvas）。
-    /// 顶部分页：全局风格 / 道具材质 / 环境材质 / FX，每页一组实时可调参数。
+    /// 顶部分页：全局风格 / 道具材质 / 环境材质 / FX / Houdini 流体。
     /// 演示"Shader 暴露参数接口 + C# 运行时驱动"的 TA 能力。
     ///
     /// 用 renderer.material（实例化）读写，运行结束不污染 .mat 资产；
-    /// 按展示物名字 Display_xxx 自动查找，无需手动拖引用。
+    /// 普通展示物按 Display_xxx 名字查找，Houdini 流体按 VAT 材质接口查找。
     /// </summary>
     public class ShowcaseControlPanel : MonoBehaviour
     {
-        enum Tab { Global, Props, Env, FX }
-        static readonly string[] TabNames = { "全局风格", "道具材质", "环境材质", "FX" };
+        enum Tab { Global, Props, Env, FX, Fluid }
+        static readonly string[] TabNames = { "全局风格", "道具材质", "环境材质", "FX", "Houdini 流体" };
 
         class Ctrl
         {
@@ -30,6 +30,11 @@ namespace GourmetLine.Showcase
 
         readonly List<Ctrl> _ctrls = new List<Ctrl>();
         readonly List<Material> _outlineMats = new List<Material>(); // 全局描边宽度作用对象
+        readonly List<Material> _fluidMats = new List<Material>();
+        readonly Dictionary<Renderer, Material[]> _originalMaterials = new Dictionary<Renderer, Material[]>();
+        readonly Dictionary<Material, string> _frameTexts = new Dictionary<Material, string>();
+        readonly Dictionary<Material, Material> _defaultMaterials = new Dictionary<Material, Material>();
+        bool _shadersOn = true;
         Turntable[] _turntables;
         DissolveLoop _dissolve;
 
@@ -107,7 +112,30 @@ namespace GourmetLine.Showcase
             AddCtrl(Tab.FX, "Rune 脉冲深度 PulseDepth",      "Display_RuneConveyor", "_PulseDepth",       0f, 1f);
             AddCtrl(Tab.FX, "Rune 粒子强度 Particle",        "Display_RuneConveyor", "_ParticleIntensity",0f, 4f);
             AddCtrl(Tab.FX, "Rune 粒子密度 Density",         "Display_RuneConveyor", "_ParticleDensity",  1f, 20f);
+
+            // VAT 原生接口支持自动播放和按导出帧号定格。
+            foreach (var renderer in Object.FindObjectsOfType<Renderer>())
+            {
+                bool hasFluid = false;
+                foreach (var material in renderer.sharedMaterials)
+                    if (IsFluidMaterial(material)) { hasFluid = true; break; }
+                if (!hasFluid) continue;
+
+                foreach (var material in renderer.materials)
+                {
+                    if (!IsFluidMaterial(material) || _fluidMats.Contains(material)) continue;
+                    _fluidMats.Add(material);
+                    AddCtrl(Tab.Fluid, "播放速度", material, "_playbackSpeed", 0f, 3f);
+                    AddCtrl(Tab.Fluid, "折射强度", material, "_Refraction_Strength", 0f, 0.15f);
+                    AddCtrl(Tab.Fluid, "深度距离", material, "_Depth_Distance", 0.1f, 30f);
+                    AddCtrl(Tab.Fluid, "最大不透明度", material, "_Max_Opacity", 0f, 1f);
+                }
+            }
         }
+
+        static bool IsFluidMaterial(Material material) => material != null &&
+            material.HasProperty("_B_autoPlayback") && material.HasProperty("_displayFrame") &&
+            material.HasProperty("_frameCount");
 
         void AddCtrl(Tab tab, string label, string goName, string prop, float min, float max)
         {
@@ -116,6 +144,11 @@ namespace GourmetLine.Showcase
             var r = go.GetComponent<Renderer>();
             if (r == null) return;
             var m = r.material; // 实例化
+            AddCtrl(tab, label, m, prop, min, max);
+        }
+
+        void AddCtrl(Tab tab, string label, Material m, string prop, float min, float max)
+        {
             int id = Shader.PropertyToID(prop);
             if (!m.HasProperty(id)) return;
             float v = m.GetFloat(id);
@@ -125,7 +158,76 @@ namespace GourmetLine.Showcase
 
         void OnDisable()
         {
+            SetShadersEnabled(true);
             if (!_ssOutlineOn) SetGlobalOutline(true); // 退出恢复全局描边，避免改坏 Renderer 资产
+        }
+
+        void SetShadersEnabled(bool enabled)
+        {
+            if (_shadersOn == enabled) return;
+            if (!enabled)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                {
+                    Debug.LogWarning("[Showcase] 找不到 URP/Lit，无法切换默认材质。", this);
+                    return;
+                }
+                foreach (var renderer in Object.FindObjectsOfType<Renderer>(true))
+                {
+                    // 文字保留字体材质；网格使用保留主贴图和底色的默认材质。
+                    if (!(renderer is MeshRenderer || renderer is SkinnedMeshRenderer) ||
+                        renderer.GetComponent<TextMesh>() != null) continue;
+                    var originals = renderer.sharedMaterials;
+                    _originalMaterials.Add(renderer, originals);
+                    var defaults = new Material[originals.Length];
+                    for (int i = 0; i < defaults.Length; i++)
+                    {
+                        var original = originals[i];
+                        if (original == null) continue;
+                        if (!_defaultMaterials.TryGetValue(original, out var material))
+                        {
+                            material = CreateDefaultMaterial(shader, original);
+                            _defaultMaterials.Add(original, material);
+                        }
+                        defaults[i] = material;
+                    }
+                    renderer.sharedMaterials = defaults;
+                }
+            }
+            else
+            {
+                foreach (var entry in _originalMaterials)
+                    if (entry.Key != null) entry.Key.sharedMaterials = entry.Value;
+                _originalMaterials.Clear();
+                foreach (var material in _defaultMaterials.Values) Destroy(material);
+                _defaultMaterials.Clear();
+            }
+            _shadersOn = enabled;
+            SetGlobalOutline(enabled && _ssOutlineOn);
+        }
+
+        static Material CreateDefaultMaterial(Shader shader, Material original)
+        {
+            var material = new Material(shader) { name = original.name + "_Default" };
+            // 项目中的普通材质使用 _BaseMap，石材使用 _StoneAlbedo，传统材质使用 _MainTex。
+            string textureProperty = original.HasProperty("_BaseMap") ? "_BaseMap" :
+                original.HasProperty("_StoneAlbedo") ? "_StoneAlbedo" : "_MainTex";
+            if (original.HasProperty(textureProperty))
+            {
+                material.SetTexture("_BaseMap", original.GetTexture(textureProperty));
+                material.SetTextureScale("_BaseMap", original.GetTextureScale(textureProperty));
+                material.SetTextureOffset("_BaseMap", original.GetTextureOffset(textureProperty));
+            }
+
+            string colorProperty = original.HasProperty("_BaseColor") ? "_BaseColor" :
+                original.HasProperty("_StoneColor") ? "_StoneColor" :
+                original.HasProperty("_GlassColor") ? "_GlassColor" :
+                original.HasProperty("_Color_Shallow") ? "_Color_Shallow" : "_Color";
+            Color color = original.HasProperty(colorProperty) ? original.GetColor(colorProperty) : Color.white;
+            color.a = 1f;
+            material.SetColor("_BaseColor", color);
+            return material;
         }
 
         // 反射拿到当前 URP Renderer 上的 OutlineRendererFeature 并开关
@@ -154,7 +256,7 @@ namespace GourmetLine.Showcase
                 _show = !_show;
             if (!_show) return;
 
-            GUILayout.BeginArea(new Rect(10, 44, 370, 540), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10, 44, 430, 540), GUI.skin.box);
 
             // 顶部分页
             _tab = (Tab)GUILayout.Toolbar((int)_tab, TabNames);
@@ -162,20 +264,34 @@ namespace GourmetLine.Showcase
 
             _scroll = GUILayout.BeginScrollView(_scroll);
             if (_tab == Tab.Global) DrawGlobal();
-            else                    DrawTab(_tab);
+            else
+            {
+                bool wasEnabled = GUI.enabled;
+                GUI.enabled = wasEnabled && _shadersOn;
+                if (_tab == Tab.Fluid) DrawFluid();
+                DrawTab(_tab);
+                GUI.enabled = wasEnabled;
+            }
             GUILayout.EndScrollView();
 
             GUILayout.EndArea();
         }
 
-        // 全局风格页：转台 / 描边宽度 / 全局屏幕空间描边
+        // 全局风格页：Shader 总开关 / 转台 / 描边宽度 / 屏幕空间描边
         void DrawGlobal()
         {
+            bool shaders = GUILayout.Toggle(_shadersOn, " 启用展示 Shader（关闭保留主贴图和底色）");
+            if (shaders != _shadersOn) SetShadersEnabled(shaders);
+            if (!_shadersOn) GUILayout.Label("默认材质下 VAT 顶点动画不生效，显示原始网格。");
+            GUILayout.Space(6);
+
             float prev = _turntableSpeed;
             _turntableSpeed = ValueRow("转台速度 (°/s)", _turntableSpeed, 0f, 90f, ref _turntableText);
             if (!Mathf.Approximately(_turntableSpeed, prev))
                 foreach (var t in _turntables) if (t != null) t.degreesPerSecond = _turntableSpeed;
 
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = wasEnabled && _shadersOn;
             prev = _outlineWidth;
             _outlineWidth = ValueRow("背面描边宽度 (px)", _outlineWidth, 0f, 5f, ref _outlineText);
             if (!Mathf.Approximately(_outlineWidth, prev))
@@ -185,6 +301,29 @@ namespace GourmetLine.Showcase
             GUILayout.Space(6);
             bool so = GUILayout.Toggle(_ssOutlineOn, " 全局屏幕空间描边 (ScreenSpaceOutline)");
             if (so != _ssOutlineOn) { _ssOutlineOn = so; SetGlobalOutline(so); }
+            GUI.enabled = wasEnabled;
+        }
+
+        void DrawFluid()
+        {
+            if (_fluidMats.Count == 0) GUILayout.Label("当前场景未找到 Houdini VAT 流体材质。");
+            foreach (var material in _fluidMats)
+            {
+                GUILayout.Label("Houdini 流体 · " + material.name);
+                bool auto = material.GetFloat("_B_autoPlayback") > 0.5f;
+                bool next = GUILayout.Toggle(auto, " 自动播放");
+                if (next != auto) material.SetFloat("_B_autoPlayback", next ? 1f : 0f);
+                if (!next)
+                {
+                    int frameCount = Mathf.Max(1, Mathf.RoundToInt(material.GetFloat("_frameCount")));
+                    int frame = Mathf.Clamp(Mathf.RoundToInt(material.GetFloat("_displayFrame")), 1, frameCount);
+                    _frameTexts.TryGetValue(material, out string text);
+                    int selected = Mathf.RoundToInt(ValueRow($"当前帧（1–{frameCount}）", frame, 1, frameCount, ref text));
+                    material.SetFloat("_displayFrame", selected);
+                    _frameTexts[material] = selected.ToString();
+                }
+                GUILayout.Space(6);
+            }
         }
 
         // 某个分页：先画该页特殊控件（FX 的溶解开关），再画材质参数行
